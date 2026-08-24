@@ -84,6 +84,12 @@
         <div class="buttons">
           <button class="button secondary" id="toggle-community-form" type="button">Open Post Menu</button>
           <button class="button secondary hidden" id="toggle-admin-menu" type="button">Open Admin Menu</button>
+          <div class="field">
+            <label>
+              <input type="checkbox" id="auto-join-toggle" />
+              Enable Auto-Join
+            </label>
+          </div>
         </div>
 
         <div id="community-form-panel" class="hidden">
@@ -99,6 +105,12 @@
                 <option value="none" selected>None</option>
                 <option value="grinding">Grinding</option>
                 <option value="adventure">Adventure</option>
+<button class="button secondary" id="auto-join-toggle" style="margin: 10px 0 0;">
+  <label>
+    <input type="checkbox" />
+    Enable Auto-Join
+  </label>
+</button>
                 <option value="action">Action</option>
                 <option value="anime">Anime</option>
                 <option value="building">Building</option>
@@ -169,6 +181,11 @@
         <p class="small">Approve reviewed community submissions from GitHub issues so they become visible for everyone in Community Posts.</p>
         <div class="games-grid" id="review-queue"></div>
         <div class="empty-state" id="review-empty">No pending community review requests found.</div>
+        <div class="field">
+          <label>
+            <button id="admin-delete-post" style="margin: 8px 0 0; width: 100%;">Delete Selected Post</button>
+          </label>
+        </div>
       </section>
 
       <div class="games-grid" id="ps-grid">
