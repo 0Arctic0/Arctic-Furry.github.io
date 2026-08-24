@@ -604,6 +604,7 @@
     const adminClearToken = byId('admin-clear-token');
     const adminPublishPost = byId('admin-publish-post');
     const adminDeletePost = byId('admin-delete-post');
+    const adminDeleteNameInput = byId('admin-delete-name');
     const adminStatus = byId('admin-status');
     const reviewQueue = byId('review-queue');
     const reviewEmpty = byId('review-empty');
@@ -1213,23 +1214,33 @@
         setAdminStatus('Paste and save a GitHub token first.', 'error');
         return;
       }
-      const mineCount = loadCommunityPosts().filter(function (post) {
-        return post && post.submitterId === verifiedDiscordUser.id;
-      }).length;
-      if (!mineCount) {
-        setAdminStatus('No community posts found for your signed-in Discord account.', 'error');
+      const wanted = String(adminDeleteNameInput && adminDeleteNameInput.value || '').trim().toLowerCase();
+      if (!wanted) {
+        setAdminStatus('Type the game name of the post you want to delete first.', 'error');
+        return;
+      }
+      const isAdmin = isCommunityAdmin(verifiedDiscordUser);
+      const matches = loadCommunityPosts().filter(function (post) {
+        if (!post || String(post.gameName || '').trim().toLowerCase() !== wanted) return false;
+        return isAdmin || post.submitterId === verifiedDiscordUser.id;
+      });
+      if (!matches.length) {
+        setAdminStatus(isAdmin
+          ? 'No community post found with the game name "' + wanted + '".'
+          : 'None of your community posts use the game name "' + wanted + '".', 'error');
         return;
       }
       const nextPosts = loadCommunityPosts().filter(function (post) {
-        return !(post && post.submitterId === verifiedDiscordUser.id);
+        return matches.indexOf(post) === -1;
       });
       try {
-        await writeGitHubJson(COMMUNITY_POSTS_PATH, nextPosts, 'Delete ' + mineCount + ' community post(s) by ' + verifiedDiscordUser.id, token);
+        await writeGitHubJson(COMMUNITY_POSTS_PATH, nextPosts, 'Delete community post(s): ' + matches.map(function (m) { return m.gameName; }).join(', '), token);
         persistAdminToken(token);
         await refreshGlobalCommunityPosts();
-        setAdminStatus('Deleted ' + mineCount + ' of your community post(s).', 'ok');
+        if (adminDeleteNameInput) adminDeleteNameInput.value = '';
+        setAdminStatus('Deleted ' + matches.length + ' post(s) named "' + wanted + '".', 'ok');
       } catch (_) {
-        setAdminStatus('Could not delete your posts. Check the token scope and repo access.', 'error');
+        setAdminStatus('Could not delete the post(s). Check the token scope and repo access.', 'error');
       }
     });
     applyFilters();

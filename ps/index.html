@@ -159,10 +159,17 @@
         <div class="divider"></div>
 
         <h3>Your Own Post Menu</h3>
-        <p class="small">Your own verified posts can be published directly for everyone from here. “Delete My Posts” removes every community post made by the Discord account you are signed in with.</p>
+        <p class="small">Type the game name of your community post below, then press “Delete By Name” to remove it from Community Posts.</p>
         <div class="buttons">
           <button class="button" id="admin-publish-post" type="button">Post For Everyone</button>
-          <button class="button secondary" id="admin-delete-post" type="button">Delete My Posts</button>
+        </div>
+
+        <div class="field">
+          <label for="admin-delete-name">Game name to delete</label>
+          <input id="admin-delete-name" placeholder="Example: Ink Games" />
+        </div>
+        <div class="buttons" style="margin-top: 0;">
+          <button class="button secondary" id="admin-delete-post" type="button">Delete By Name</button>
         </div>
 
         <div class="divider"></div>
@@ -193,10 +200,17 @@
             <button class="button" data-share-code="f9a5e2db4d3e2c4a835ac4628eb754e2">Join in Roblox</button>
             <a class="button secondary" href="https://www.roblox.com/share?code=f9a5e2db4d3e2c4a835ac4628eb754e2&type=Server">Open Share Link</a>
           </div>
+        <article class="game-card" data-ps-card data-name="Pressure" data-category="horror" data-popularity="80" data-search="pressure horror underwater doors-like scary">
+          <div class="game-thumb">🌊</div>
+          <h2>Pressure</h2>
+          <div class="game-meta"><span class="pill">Horror</span><span class="pill">Popular</span></div>
+          <p>Private server by you.</p>
+          <div class="game-actions">
+            <button class="button" data-share-code="2f514cf01ac7664fa59ffcaa5d0065f5">Join in Roblox</button>
+            <a class="button secondary" href="https://www.roblox.com/share?code=2f514cf01ac7664fa59ffcaa5d0065f5&type=Server">Open Share Link</a>
+          </div>
         </article>
       </div>
-
-      <section class="community-panel">
         <h2>Community Posts</h2>
         <div class="games-grid" id="community-posts"></div>
         <div class="empty-state" id="community-empty">No community posts are live here yet.</div>
