@@ -621,6 +621,26 @@
       });
     });
 
+    document.querySelectorAll('[data-ps-card] .game-actions').forEach(function (actions) {
+      const joinButton = actions.querySelector('[data-share-code]');
+      if (!joinButton || actions.querySelector('[data-copy-static]')) return;
+      const staticCopyButton = document.createElement('button');
+      staticCopyButton.type = 'button';
+      staticCopyButton.className = 'button secondary hidden';
+      staticCopyButton.setAttribute('data-copy-static', joinButton.getAttribute('data-share-code') || '');
+      staticCopyButton.textContent = 'Copy Join Link';
+      actions.appendChild(staticCopyButton);
+    });
+    document.querySelectorAll('[data-copy-static]').forEach(function (button) {
+      button.addEventListener('click', function () {
+        const code = button.getAttribute('data-copy-static') || '';
+        if (!code) return;
+        copyText(buildShareLinkDeepLink(code)).then(function (ok) {
+          setCommunityStatus(ok ? 'Join link copied to your clipboard.' : 'Could not copy the join link.', ok ? 'ok' : 'error');
+        });
+      });
+    });
+
     function setCommunityStatus(message, type) {
       if (!communityStatus) return;
       communityStatus.textContent = message;
@@ -872,6 +892,9 @@
         const deleteButton = canDeleteCommunityPost(post)
           ? '<button class="button secondary" data-delete-post="' + escapeHtml(post.id) + '" data-delete-mode="' + (canHardDeleteCommunityPost(post) ? 'hard' : 'request') + '">' + (canHardDeleteCommunityPost(post) ? 'Delete Post' : 'Request Delete') + '</button>'
           : '';
+        const copyButton = verifiedDiscordUser
+          ? '<button class="button secondary" data-copy-post="' + escapeHtml(post.shareCode) + '" type="button">Copy Join Link</button>'
+          : '';
         return '<article class="game-card">'
           + '<div class="game-meta"><span class="pill">Community</span><span class="pill">' + escapeHtml(post.categoryLabel) + '</span></div>'
           + '<div class="verified-user" style="margin-top:0;padding-top:0;border-top:none;">'
@@ -883,6 +906,7 @@
           + '<div class="game-actions">'
           + '<button class="button" data-share-code="' + escapeHtml(post.shareCode) + '">Join in Roblox</button>'
           + '<a class="button secondary" href="' + escapeHtml(post.shareLink) + '">Open Share Link</a>'
+          + copyButton
           + deleteButton
           + '</div>'
           + '</article>';
@@ -893,6 +917,16 @@
           const code = button.getAttribute('data-share-code') || '';
           if (!code) return;
           window.location.href = buildShareLinkDeepLink(code);
+        });
+      });
+      const copyPostButtons = communityPosts.querySelectorAll('[data-copy-post]');
+      copyPostButtons.forEach(function (button) {
+        button.addEventListener('click', function () {
+          const code = button.getAttribute('data-copy-post') || '';
+          if (!code) return;
+          copyText(buildShareLinkDeepLink(code)).then(function (ok) {
+            setCommunityStatus(ok ? 'Join link copied to your clipboard.' : 'Could not copy the join link.', ok ? 'ok' : 'error');
+          });
         });
       });
       const deleteButtons = communityPosts.querySelectorAll('[data-delete-post]');
@@ -939,6 +973,9 @@
         discordLogin.classList.remove('hidden');
         verifiedUser && verifiedUser.classList.add('hidden');
         discordLogout && discordLogout.classList.add('hidden');
+        document.querySelectorAll('[data-copy-static]').forEach(function (button) {
+          button.classList.add('hidden');
+        });
         renderAdminPanel();
         renderReviewQueue();
         return;
@@ -951,6 +988,9 @@
       }
       verifiedUser && verifiedUser.classList.remove('hidden');
       discordLogout && discordLogout.classList.remove('hidden');
+      document.querySelectorAll('[data-copy-static]').forEach(function (button) {
+        button.classList.remove('hidden');
+      });
       renderAdminPanel();
       renderCommunityPosts();
       refreshReviewQueue();
