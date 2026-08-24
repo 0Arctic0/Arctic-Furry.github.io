@@ -85,7 +85,7 @@
   }
 
   function buildCommunityIssueUrl(payload) {
-    const url = new URL('https://github.com/Furry-Changed-Fox/furry-changed-fox.github.io/issues/new');
+    const url = new URL('https://github.com/Arctic-Furry/arctic-furry.github.io/issues/new');
     url.searchParams.set('title', 'Community private server: ' + payload.gameName);
     url.searchParams.set('body', [
       '## Community Private Server Submission',
@@ -117,14 +117,14 @@
     const url = new URL('https://discord.com/oauth2/authorize');
     url.searchParams.set('client_id', '1521410277600661554');
     url.searchParams.set('response_type', 'token');
-    url.searchParams.set('redirect_uri', 'https://furry-changed-fox.github.io/ps/');
+    url.searchParams.set('redirect_uri', 'https://arctic-furry.github.io/ps/');
     url.searchParams.set('scope', 'identify');
     url.searchParams.set('prompt', 'consent');
     return url.toString();
   }
 
-  const GITHUB_OWNER = 'Furry-Changed-Fox';
-  const GITHUB_REPO = 'furry-changed-fox.github.io';
+  const GITHUB_OWNER = 'Arctic-Furry';
+  const GITHUB_REPO = 'arctic-furry.github.io';
   const COMMUNITY_POSTS_PATH = 'data/community-posts.json';
   const CHANGELOGS_PATH = 'data/changelogs.json';
 
@@ -357,10 +357,28 @@
       window.location.href = deepLink;
     }
 
+    const autoJoinToggle = byId('auto-join-toggle');
+    let autoJoinEnabled = false;
+    try { autoJoinEnabled = localStorage.getItem('joiner.autoJoin') === '1'; } catch (_) {}
+
+    if (autoJoinToggle) {
+      autoJoinToggle.checked = autoJoinEnabled;
+      autoJoinToggle.addEventListener('change', function () {
+        try { localStorage.setItem('joiner.autoJoin', autoJoinToggle.checked ? '1' : '0'); } catch (_) {}
+        setStatus(autoJoinToggle.checked
+          ? 'Auto-Join is ON: future join links will open Roblox instantly.'
+          : 'Auto-Join is OFF: you pick App or Web yourself each time.');
+      });
+    }
+
     openApp && openApp.addEventListener('click', openRoblox);
 
-    setStatus('Trying Roblox app first. If nothing opens, use the buttons above.');
-    window.setTimeout(openRoblox, 250);
+    if (autoJoinEnabled) {
+      setStatus('Auto-Join is ON: opening Roblox…');
+      window.setTimeout(openRoblox, 250);
+    } else {
+      setStatus('Pick how you want to join: Open Roblox App or Open Roblox Web Page.');
+    }
   }
 
   function initMenuPage() {
@@ -457,6 +475,27 @@
       }
     }
 
+    function loadAutoJoinPref() {
+      try { return localStorage.getItem('joiner.autoJoin') === '1'; } catch (_) { return false; }
+    }
+
+    function saveAutoJoinPref(enabled) {
+      try { localStorage.setItem('joiner.autoJoin', enabled ? '1' : '0'); } catch (_) {}
+    }
+
+    function buildDirectDeepLink() {
+      const mode = getMode();
+      if (mode === 'private') {
+        const privateCode = normalizePrivateCode(
+          (privateInput && privateInput.value) || (privateGameLinkInput && privateGameLinkInput.value)
+        );
+        return buildShareLinkDeepLink(privateCode);
+      }
+      const placeId = normalizePlaceId(placeInput && placeInput.value);
+      const instanceId = normalizeInstanceId(instanceInput && instanceInput.value);
+      return instanceId ? buildDeepLink(placeId, instanceId) : buildPlaceLink(placeId);
+    }
+
     function refresh() {
       syncModeUi();
       const mode = getMode();
@@ -495,7 +534,16 @@
 
     launchButton && launchButton.addEventListener('click', function () {
       const url = makeUrl();
-      if (url) window.location.href = url;
+      if (!url) return;
+      const autoJoinNow = byId('auto-join-toggle');
+      if (autoJoinNow && autoJoinNow.checked) {
+        const deepLink = buildDirectDeepLink();
+        if (deepLink) {
+          window.location.href = deepLink;
+          return;
+        }
+      }
+      window.location.href = url;
     });
 
     viewGameButton && viewGameButton.addEventListener('click', function () {
@@ -509,6 +557,17 @@
       const url = makeUrl();
       if (url) copyText(url, 'Join link copied.');
     });
+
+    const autoJoinCheckbox = byId('auto-join-toggle');
+    if (autoJoinCheckbox) {
+      autoJoinCheckbox.checked = loadAutoJoinPref();
+      autoJoinCheckbox.addEventListener('change', function () {
+        saveAutoJoinPref(autoJoinCheckbox.checked);
+        setStatus(autoJoinCheckbox.checked
+          ? 'Auto-Join is ON: pressing Join Server opens Roblox instantly.'
+          : 'Auto-Join is OFF: Join Server shows the App/Browser choice page.');
+      });
+    }
 
     refresh();
   }
@@ -544,6 +603,7 @@
     const adminSaveToken = byId('admin-save-token');
     const adminClearToken = byId('admin-clear-token');
     const adminPublishPost = byId('admin-publish-post');
+    const adminDeletePost = byId('admin-delete-post');
     const adminStatus = byId('admin-status');
     const reviewQueue = byId('review-queue');
     const reviewEmpty = byId('review-empty');
@@ -1141,6 +1201,35 @@
         setAdminStatus('Community post published globally.', 'ok');
       } catch (_) {
         setAdminStatus('Could not publish the global community post. Check the token scope and repo access.', 'error');
+      }
+    });
+    adminDeletePost && adminDeletePost.addEventListener('click', async function () {
+      if (!verifiedDiscordUser) {
+        setAdminStatus('Verify with Discord first so your posts can be matched to your account.', 'error');
+        return;
+      }
+      const token = String(adminTokenInput && adminTokenInput.value || loadAdminToken()).trim();
+      if (!token) {
+        setAdminStatus('Paste and save a GitHub token first.', 'error');
+        return;
+      }
+      const mineCount = loadCommunityPosts().filter(function (post) {
+        return post && post.submitterId === verifiedDiscordUser.id;
+      }).length;
+      if (!mineCount) {
+        setAdminStatus('No community posts found for your signed-in Discord account.', 'error');
+        return;
+      }
+      const nextPosts = loadCommunityPosts().filter(function (post) {
+        return !(post && post.submitterId === verifiedDiscordUser.id);
+      });
+      try {
+        await writeGitHubJson(COMMUNITY_POSTS_PATH, nextPosts, 'Delete ' + mineCount + ' community post(s) by ' + verifiedDiscordUser.id, token);
+        persistAdminToken(token);
+        await refreshGlobalCommunityPosts();
+        setAdminStatus('Deleted ' + mineCount + ' of your community post(s).', 'ok');
+      } catch (_) {
+        setAdminStatus('Could not delete your posts. Check the token scope and repo access.', 'error');
       }
     });
     applyFilters();

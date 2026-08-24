@@ -56,6 +56,69 @@ p {
 
 .small { font-size: 13px; color: var(--subtle); }
 
+.auto-join-panel {
+  margin: 18px 0 6px;
+  padding: 16px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.auto-join-title {
+  margin: 0 0 6px;
+  font-size: 17px;
+  color: var(--text);
+}
+
+.auto-join-box {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 10px;
+  padding: 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: rgba(88, 101, 242, 0.08);
+  cursor: pointer;
+  transition: border-color .12s ease, background .12s ease;
+}
+
+.auto-join-box:hover {
+  border-color: var(--accent);
+}
+
+.auto-join-box input[type="checkbox"] {
+  appearance: none;
+  width: 26px;
+  height: 26px;
+  min-width: 26px;
+  border-radius: 8px;
+  border: 2px solid var(--accent);
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background .12s ease;
+}
+
+.auto-join-box input[type="checkbox"]:checked {
+  background: var(--accent);
+}
+
+.auto-join-box input[type="checkbox"]:checked::after {
+  content: "✔";
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.auto-join-label {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+
 .buttons {
   display: flex;
   flex-wrap: wrap;

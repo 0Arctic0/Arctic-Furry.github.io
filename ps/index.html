@@ -82,14 +82,9 @@
         </div>
 
         <div class="buttons">
+          <a class="button secondary" href="../menu/">Open Menu</a>
           <button class="button secondary" id="toggle-community-form" type="button">Open Post Menu</button>
           <button class="button secondary hidden" id="toggle-admin-menu" type="button">Open Admin Menu</button>
-          <div class="field">
-            <label>
-              <input type="checkbox" id="auto-join-toggle" />
-              Enable Auto-Join
-            </label>
-          </div>
         </div>
 
         <div id="community-form-panel" class="hidden">
@@ -105,12 +100,6 @@
                 <option value="none" selected>None</option>
                 <option value="grinding">Grinding</option>
                 <option value="adventure">Adventure</option>
-<button class="button secondary" id="auto-join-toggle" style="margin: 10px 0 0;">
-  <label>
-    <input type="checkbox" />
-    Enable Auto-Join
-  </label>
-</button>
                 <option value="action">Action</option>
                 <option value="anime">Anime</option>
                 <option value="building">Building</option>
@@ -170,13 +159,11 @@
         <div class="divider"></div>
 
         <h3>Your Own Post Menu</h3>
-        <p class="small">Your own verified posts can be published directly for everyone from here.</p>
+        <p class="small">Your own verified posts can be published directly for everyone from here. “Delete My Posts” removes every community post made by the Discord account you are signed in with.</p>
         <div class="buttons">
           <button class="button" id="admin-publish-post" type="button">Post For Everyone</button>
+          <button class="button secondary" id="admin-delete-post" type="button">Delete My Posts</button>
         </div>
-          <div class="field" id="admin-actions">
-            <button class="button" id="admin-delete-post" style="margin: 8px 0 0; width: 100%;">Delete User Post</button>
-          </div>
 
         <div class="divider"></div>
 
@@ -184,15 +171,9 @@
         <p class="small">Approve reviewed community submissions from GitHub issues so they become visible for everyone in Community Posts.</p>
         <div class="games-grid" id="review-queue"></div>
         <div class="empty-state" id="review-empty">No pending community review requests found.</div>
-        <div class="field">
-          <label>
-            <button id="admin-delete-post" style="margin: 8px 0 0; width: 100%;">Delete Selected Post</button>
-          </label>
-        </div>
       </section>
 
       <div class="games-grid" id="ps-grid">
-        </article>
         <article class="game-card" data-ps-card data-name="Build a Boat" data-category="building" data-popularity="85" data-search="build a boat building sandbox raft boat">
           <div class="game-thumb">⛵</div>
           <h2>Build a Boat</h2>
@@ -203,15 +184,17 @@
             <a class="button secondary" href="https://www.roblox.com/share?code=7a9b33ac386dee4888919027250c3b59&type=Server">Open Share Link</a>
           </div>
         </article>
-        <article class="game-card" data-ps-card data-name="Ink Games" data-category="Others" data-popularity="-" data-search="squid game">
-          <div class="game-thumb"></div>
+        <article class="game-card" data-ps-card data-name="Ink Games" data-category="others" data-popularity="60" data-search="ink games squid game">
+          <div class="game-thumb">🦑</div>
           <h2>Ink Games</h2>
-          <div class="game-meta"><span class="pill">Others</span></div>
+          <div class="game-meta"><span class="pill">Social / Party</span><span class="pill">Popular</span></div>
           <p>Private server by you.</p>
           <div class="game-actions">
             <button class="button" data-share-code="f9a5e2db4d3e2c4a835ac4628eb754e2">Join in Roblox</button>
             <a class="button secondary" href="https://www.roblox.com/share?code=f9a5e2db4d3e2c4a835ac4628eb754e2&type=Server">Open Share Link</a>
           </div>
+        </article>
+      </div>
 
       <section class="community-panel">
         <h2>Community Posts</h2>

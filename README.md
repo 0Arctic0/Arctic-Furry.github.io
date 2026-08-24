@@ -52,7 +52,7 @@ Examples:
 
 ## Made by
 
-- Built for **Furry-Changed-Fox**
+- Built for **Arctic-Furry**
 - Implemented with help from **Cline**
 
 ## Publishing
