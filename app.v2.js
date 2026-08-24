@@ -635,8 +635,8 @@
       button.addEventListener('click', function () {
         const code = button.getAttribute('data-copy-static') || '';
         if (!code) return;
-        copyText(buildShareLinkDeepLink(code)).then(function (ok) {
-          setCommunityStatus(ok ? 'Join link copied to your clipboard.' : 'Could not copy the join link.', ok ? 'ok' : 'error');
+        copyText(buildPrivateWebLink(code)).then(function (ok) {
+          setCommunityStatus(ok ? 'Link copied to your clipboard.' : 'Could not copy the link.', ok ? 'ok' : 'error');
         });
       });
     });
@@ -893,7 +893,7 @@
           ? '<button class="button secondary" data-delete-post="' + escapeHtml(post.id) + '" data-delete-mode="' + (canHardDeleteCommunityPost(post) ? 'hard' : 'request') + '">' + (canHardDeleteCommunityPost(post) ? 'Delete Post' : 'Request Delete') + '</button>'
           : '';
         const copyButton = verifiedDiscordUser
-          ? '<button class="button secondary" data-copy-post="' + escapeHtml(post.shareCode) + '" type="button">Copy Join Link</button>'
+          ? '<button class="button secondary" data-copy-post="' + escapeHtml(post.shareLink) + '" type="button">Copy Join Link</button>'
           : '';
         return '<article class="game-card">'
           + '<div class="game-meta"><span class="pill">Community</span><span class="pill">' + escapeHtml(post.categoryLabel) + '</span></div>'
@@ -922,10 +922,10 @@
       const copyPostButtons = communityPosts.querySelectorAll('[data-copy-post]');
       copyPostButtons.forEach(function (button) {
         button.addEventListener('click', function () {
-          const code = button.getAttribute('data-copy-post') || '';
-          if (!code) return;
-          copyText(buildShareLinkDeepLink(code)).then(function (ok) {
-            setCommunityStatus(ok ? 'Join link copied to your clipboard.' : 'Could not copy the join link.', ok ? 'ok' : 'error');
+          const link = button.getAttribute('data-copy-post') || '';
+          if (!link) return;
+          copyText(link).then(function (ok) {
+            setCommunityStatus(ok ? 'Link copied to your clipboard.' : 'Could not copy the link.', ok ? 'ok' : 'error');
           });
         });
       });
