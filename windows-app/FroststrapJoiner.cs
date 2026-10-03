@@ -629,11 +629,19 @@ namespace FroststrapJoiner
             return parts;
         }
 
+        // GitHub's raw-file CDN can serve stale content for a few minutes after
+        // a push, so downloads always carry a unique cache-busting query.
+        private static string Busted(string url)
+        {
+            return url + (url.IndexOf('?') >= 0 ? "&" : "?") + "t=" +
+                   System.DateTime.UtcNow.Ticks.ToString();
+        }
+
         public static string DownloadText(string url)
         {
             using (var wc = new System.Net.WebClient())
             {
-                return wc.DownloadString(url);
+                return wc.DownloadString(Busted(url));
             }
         }
 
@@ -641,7 +649,7 @@ namespace FroststrapJoiner
         {
             using (var wc = new System.Net.WebClient())
             {
-                wc.DownloadFile(url, dest);
+                wc.DownloadFile(Busted(url), dest);
             }
         }
 

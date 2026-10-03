@@ -11,9 +11,9 @@ echo.
 mkdir "%DIR%" 2>nul
 
 echo [1/3] Downloading latest source from GitHub...
-curl -fsSL -o "%DIR%\FroststrapJoiner.cs" "%BASE%/FroststrapJoiner.cs"
+curl -fsSL -o "%DIR%\FroststrapJoiner.cs" "%BASE%/FroststrapJoiner.cs?nocache=%RANDOM%%RANDOM%"
 if errorlevel 1 goto :fail
-curl -fsSL -o "%DIR%\version.txt" "%BASE%/version.txt"
+curl -fsSL -o "%DIR%\version.txt" "%BASE%/version.txt?nocache=%RANDOM%%RANDOM%"
 if errorlevel 1 goto :fail
 
 echo [2/3] Looking for the C# compiler that ships with Windows...
