@@ -143,6 +143,7 @@ namespace ArcticJoiner
         private readonly Button _updateButton;
         private readonly ComboBox _linkBox;
         private readonly Label _hotkeyLabel;
+        private readonly Button _changeHotkeyButton;
         private readonly List<string> _history = new List<string>();
         private NotifyIcon _tray;
         private bool _reallyExit;
@@ -348,16 +349,19 @@ namespace ArcticJoiner
                 ForeColor = SystemColors.GrayText
             };
 
-            var changeHotkeyButton = new Button
+            _changeHotkeyButton = new Button
             {
-                Text = "Change hotkey...",
+                Text = "Change hotkey (" + HotkeyDescription() + ")...",
                 Location = new Point(0, 126),
-                Size = new Size(130, 26)
+                Size = new Size(220, 26)
             };
-            changeHotkeyButton.Click += (s, e) =>
+            _changeHotkeyButton.Click += (s, e) =>
             {
                 _captureHotkey = true;
-                SetStatus("Press the new hotkey combination now (Esc to cancel)...", false);
+                // Pull focus away from the paste box so nothing can be typed or
+                // pasted into it while the next keystroke is being captured.
+                ActiveControl = _changeHotkeyButton;
+                SetStatus("Press the new hotkey now (Esc to cancel) - nothing will be pasted.", false);
             };
 
             _settingsPanel.Controls.Add(pathLabel);
@@ -365,7 +369,7 @@ namespace ArcticJoiner
             _settingsPanel.Controls.Add(_browseButton);
             _settingsPanel.Controls.Add(checkUpdateButton);
             _settingsPanel.Controls.Add(_hotkeyLabel);
-            _settingsPanel.Controls.Add(changeHotkeyButton);
+            _settingsPanel.Controls.Add(_changeHotkeyButton);
             _settingsPanel.Controls.Add(hint);
 
             Controls.Add(pasteLabel);
@@ -669,6 +673,10 @@ namespace ArcticJoiner
                 _hotkeyLabel.Text = "Global hotkey: " + HotkeyDescription() +
                     " - joins whatever Roblox link is on your clipboard, from anywhere in Windows.";
             }
+            if (_changeHotkeyButton != null)
+            {
+                _changeHotkeyButton.Text = "Change hotkey (" + HotkeyDescription() + ")...";
+            }
         }
 
         private void OnHotkey()
@@ -700,12 +708,13 @@ namespace ArcticJoiner
         {
             if (_captureHotkey)
             {
+                // Swallow EVERY key during capture so nothing gets typed or pasted.
                 e.Handled = true;
                 e.SuppressKeyPress = true;
                 if (e.KeyCode == Keys.Escape)
                 {
                     _captureHotkey = false;
-                    SetStatus("Hotkey change cancelled.", false);
+                    SetStatus("Hotkey change cancelled - still set to " + HotkeyDescription() + ".", false);
                     return;
                 }
                 if (e.KeyCode != Keys.ControlKey &&
@@ -717,10 +726,10 @@ namespace ArcticJoiner
                     if (e.Alt) mods |= 1;
                     _settings.HotkeyMods = mods;
                     _settings.HotkeyKey = e.KeyCode.ToString();
-                    _settings.Save();
+                    _settings.Save(); // saved immediately, no extra step
                     _captureHotkey = false;
                     ApplyHotkey();
-                    SetStatus("Global hotkey set to " + HotkeyDescription() + ".", false);
+                    SetStatus("Hotkey set to " + HotkeyDescription() + " and saved.", false);
                 }
                 return;
             }
@@ -917,7 +926,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "1.6.0";
+        public const string Version = "1.6.1";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.
