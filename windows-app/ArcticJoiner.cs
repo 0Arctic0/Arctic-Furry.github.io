@@ -1133,8 +1133,6 @@ namespace ArcticJoiner
 " +
                 "  "FFlagSkipBootstrapperUpdateCheck": "True",
 " +
-                "  "DFIntDebugFRMQualityLevelOverride": "1",
-" +
                 "  "FLogNetwork": "7",
 " +
                 "  "FFlagDebugDisableTelemetryAppShellInit": "True",
@@ -1483,7 +1481,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "2.4.0";
+        public const string Version = "2.4.1";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.
