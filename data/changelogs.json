@@ -3,6 +3,8 @@
     "date": "2026-07-01",
     "title": "games/start links and Windows instant-join app",
     "items": [
+      "Windows app now auto-fetches updates from GitHub: it checks for new versions on launch and installs them with one click (downloads, rebuilds, and swaps itself).",
+      "Added one-line install script for the Windows app that fetches and builds the latest version from GitHub.",
       "Redesigned the menu around a single paste box: paste any link and the best join option is chosen automatically, with an Advanced panel for manual entry.",
       "Fixed paste detection: normal game URLs (place ID in the path) and links pasted without https:// now work.",
       "Added support for Roblox games/start links with placeId and launchData (https://www.roblox.com/games/start?placeId=...&launchData=...).",

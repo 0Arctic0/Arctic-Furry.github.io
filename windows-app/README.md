@@ -22,6 +22,32 @@ extra clicks.
 - raw `roblox://` deep links (passed straight through)
 - a bare place ID (digits) or a bare share code
 
+## Auto-update from GitHub
+
+The app **fetches updates from this GitHub repo automatically**:
+
+- On every launch it checks `windows-app/version.txt` on `main` in the background.
+- If a newer version is out, an **"Update available"** button appears — one click
+  downloads the latest source, rebuilds itself with the built-in compiler, swaps
+  the exe, and restarts. No reinstall, no download page.
+- Keep the exe somewhere writable (e.g. your Desktop or a folder in your user
+  profile — the default install location is fine), not Program Files.
+
+To publish a new version, bump the `Version` constant in
+`FroststrapJoiner.cs` and `windows-app/version.txt`, and commit to `main`.
+
+## One-line install (fetches from GitHub)
+
+No clone needed — run this in PowerShell on any Windows PC:
+
+```
+powershell -ExecutionPolicy Bypass -Command "iwr https://raw.githubusercontent.com/Arctic-Furry/Arctic-Furry.github.io/main/windows-app/install.ps1 -UseBasicParsing | iex"
+```
+
+It downloads the latest app from this repo, builds it with the compiler that
+ships with Windows, and installs it to
+`%LOCALAPPDATA%\FroststrapJoiner\FroststrapJoiner.exe`.
+
 ## Build
 
 Run PowerShell in this folder:

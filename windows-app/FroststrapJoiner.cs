@@ -121,6 +121,7 @@ namespace FroststrapJoiner
         private readonly Button _browseButton;
         private readonly Button _openSettingsButton;
         private readonly Panel _settingsPanel;
+        private readonly Button _updateButton;
         private string _lastAutoJoined = "";
 
         public JoinerForm(Settings settings)
@@ -217,6 +218,16 @@ namespace FroststrapJoiner
                 ClientSize = new Size(ClientSize.Width, _settingsPanel.Visible ? 300 : 190);
             };
 
+            _updateButton = new Button
+            {
+                Text = "",
+                Visible = false,
+                Enabled = false,
+                Location = new Point(160, 108),
+                Width = 260
+            };
+            _updateButton.Click += (s, e) => RunSelfUpdate();
+
             _settingsPanel = new Panel
             {
                 Location = new Point(12, 140),
@@ -284,8 +295,14 @@ namespace FroststrapJoiner
             Controls.Add(_closeAfterCheck);
             Controls.Add(_openSettingsButton);
             Controls.Add(_settingsPanel);
+            Controls.Add(_updateButton);
 
             AcceptButton = _joinButton;
+
+            // Housekeeping: remove leftovers from a previous self-update,
+            // then check GitHub for a newer version in the background.
+            CleanupOldBinary();
+            CheckForUpdatesAsync();
         }
 
         private void LinkBoxKeyDown(object sender, KeyEventArgs e)
@@ -340,6 +357,93 @@ namespace FroststrapJoiner
         {
             _status.Text = message;
             _status.ForeColor = error ? Color.Firebrick : SystemColors.ControlText;
+        }
+
+        private void CleanupOldBinary()
+        {
+            try
+            {
+                string old = Application.ExecutablePath + ".old";
+                if (File.Exists(old)) File.Delete(old);
+            }
+            catch { }
+        }
+
+        private void CheckForUpdatesAsync()
+        {
+            System.Threading.Tasks.Task.Run((Action)(() =>
+            {
+                string newer = null;
+                try
+                {
+                    string remote = Updater.DownloadText(Updater.VersionUrl).Trim();
+                    if (remote.Length > 0 && Updater.IsNewer(remote, Updater.Version)) newer = remote;
+                }
+                catch { }
+                if (newer == null) return;
+                try
+                {
+                    Invoke((MethodInvoker)delegate
+                    {
+                        _updateButton.Text = "Update available (v" + newer + ") - install";
+                        _updateButton.Visible = true;
+                        _updateButton.Enabled = true;
+                    });
+                }
+                catch { }
+            }));
+        }
+
+        private void RunSelfUpdate()
+        {
+            _updateButton.Enabled = false;
+            SetStatus("Fetching the latest version from GitHub...", false);
+            System.Threading.Tasks.Task.Run((Action)(() =>
+            {
+                try
+                {
+                    string dir = Path.Combine(Path.GetTempPath(), "FroststrapJoinerUpdate");
+                    Directory.CreateDirectory(dir);
+                    string cs = Path.Combine(dir, "FroststrapJoiner.cs");
+                    Updater.DownloadFile(Updater.SourceUrl, cs);
+
+                    string exeDir = Path.GetDirectoryName(Application.ExecutablePath);
+                    string newExe = Path.Combine(exeDir, "FroststrapJoiner.new.exe");
+                    try { if (File.Exists(newExe)) File.Delete(newExe); } catch { }
+
+                    string err = Updater.CompileUpdate(cs, newExe);
+                    if (err != null) throw new Exception("build failed: " + err);
+
+                    string current = Application.ExecutablePath;
+                    string old = current + ".old";
+                    try { if (File.Exists(old)) File.Delete(old); } catch { }
+                    File.Move(current, old);
+                    File.Move(newExe, current);
+
+                    SetStatusUi("Updated to the latest version. Restarting...", false);
+                    Process.Start(current);
+                    Invoke((MethodInvoker)delegate { Close(); });
+                }
+                catch (Exception ex)
+                {
+                    SetStatusUi("Update failed: " + ex.Message +
+                        " (tip: the app folder must be writable - keep it in your user folder, not Program Files)", true);
+                    try
+                    {
+                        Invoke((MethodInvoker)delegate { _updateButton.Enabled = true; });
+                    }
+                    catch { }
+                }
+            }));
+        }
+
+        private void SetStatusUi(string message, bool error)
+        {
+            try
+            {
+                Invoke((MethodInvoker)delegate { SetStatus(message, error); });
+            }
+            catch { }
         }
     }
 }
@@ -479,6 +583,115 @@ namespace FroststrapJoiner
             var sb = new StringBuilder();
             foreach (char c in text) if (char.IsLetterOrDigit(c)) sb.Append(c);
             return sb.ToString();
+        }
+    }
+}
+
+namespace FroststrapJoiner
+{
+    // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
+    internal static class Updater
+    {
+        public const string Version = "1.1.0";
+
+        public const string BaseUrl =
+            "https://raw.githubusercontent.com/Arctic-Furry/Arctic-Furry.github.io/main/windows-app/";
+        public const string VersionUrl = BaseUrl + "version.txt";
+        public const string SourceUrl = BaseUrl + "FroststrapJoiner.cs";
+
+        // Compares dotted versions, e.g. "1.2.0" > "1.1.9".
+        public static bool IsNewer(string remote, string local)
+        {
+            if (string.IsNullOrWhiteSpace(remote) || string.IsNullOrWhiteSpace(local)) return false;
+            int[] r = ParseVersion(remote);
+            int[] l = ParseVersion(local);
+            for (int i = 0; i < 3; i++)
+            {
+                if (r[i] != l[i]) return r[i] > l[i];
+            }
+            return false;
+        }
+
+        private static int[] ParseVersion(string text)
+        {
+            var parts = new int[3];
+            string[] chunks = (text ?? "").Trim().Split('.');
+            for (int i = 0; i < 3; i++)
+            {
+                int n;
+                parts[i] = (i < chunks.Length && int.TryParse(chunks[i], out n)) ? n : 0;
+            }
+            return parts;
+        }
+
+        public static string DownloadText(string url)
+        {
+            using (var wc = new System.Net.WebClient())
+            {
+                return wc.DownloadString(url);
+            }
+        }
+
+        public static void DownloadFile(string url, string dest)
+        {
+            using (var wc = new System.Net.WebClient())
+            {
+                wc.DownloadFile(url, dest);
+            }
+        }
+
+        public static string FindCsc()
+        {
+            string[] roots =
+            {
+                System.Environment.Is64BitProcess
+                    ? System.IO.Path.Combine(System.Environment.GetEnvironmentVariable("WINDIR") ?? "C:\\Windows", "Microsoft.NET\\Framework64")
+                    : System.IO.Path.Combine(System.Environment.GetEnvironmentVariable("WINDIR") ?? "C:\\Windows", "Microsoft.NET\\Framework")
+            };
+            foreach (string root in roots)
+            {
+                if (!System.IO.Directory.Exists(root)) continue;
+                // Prefer the newest installed Framework version.
+                string best = null;
+                foreach (string dir in System.IO.Directory.GetDirectories(root, "v4.0.*"))
+                {
+                    string candidate = System.IO.Path.Combine(dir, "csc.exe");
+                    if (System.IO.File.Exists(candidate)) best = candidate;
+                }
+                if (best != null) return best;
+            }
+            return null;
+        }
+
+        // Compiles an updated source file. Returns null on success or an error message.
+        public static string CompileUpdate(string csPath, string outPath)
+        {
+            string csc = FindCsc();
+            if (csc == null)
+            {
+                return "no .NET Framework C# compiler found on this PC";
+            }
+            var psi = new ProcessStartInfo
+            {
+                FileName = csc,
+                Arguments = "/nologo /target:winexe /optimize+ \"/out:\"" + outPath + "\"\" " +
+                            "/r:System.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll \""" + csPath + "\"",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true
+            };
+            using (var p = Process.Start(psi))
+            {
+                string output = p.StandardOutput.ReadToEnd() + p.StandardError.ReadToEnd();
+                p.WaitForExit();
+                if (p.ExitCode != 0 || !System.IO.File.Exists(outPath))
+                {
+                    string trimmed = (output ?? "").Trim();
+                    return trimmed.Length > 0 ? trimmed : "compiler exited with code " + p.ExitCode;
+                }
+            }
+            return null;
         }
     }
 }
