@@ -690,6 +690,7 @@
     const searchInput = byId('ps-search');
     const categorySelect = byId('ps-category');
     const sortSelect = byId('ps-sort');
+    const favoritesOnly = byId('ps-favorites-only');
     const emptyState = byId('ps-empty');
     const buttons = document.querySelectorAll('[data-share-code]');
     const communityName = byId('community-game-name');
@@ -743,6 +744,30 @@
       staticCopyButton.textContent = 'Copy Join Link';
       actions.appendChild(staticCopyButton);
     });
+
+    function renderFavoriteButtons() {
+      document.querySelectorAll('[data-fav]').forEach(function (button) {
+        const name = button.getAttribute('data-fav') || '';
+        const on = isFavorite(name);
+        button.textContent = on ? '\u2605 Favorited' : '\u2606 Favorite';
+        button.setAttribute('aria-pressed', on ? 'true' : 'false');
+        button.classList.toggle('fav-on', on);
+      });
+    }
+
+    document.querySelectorAll('[data-ps-card]').forEach(function (card) {
+      const actions = card.querySelector('.game-actions');
+      const name = card.getAttribute('data-name') || '';
+      if (!actions || !name || actions.querySelector('[data-fav]')) return;
+      const favButton = document.createElement('button');
+      favButton.type = 'button';
+      favButton.className = 'button secondary';
+      favButton.setAttribute('data-fav', name);
+      favButton.textContent = '\u2606 Favorite';
+      favButton.addEventListener('click', function () { toggleFavorite(name); });
+      actions.appendChild(favButton);
+    });
+    renderFavoriteButtons();
     document.querySelectorAll('[data-copy-static]').forEach(function (button) {
       button.addEventListener('click', function () {
         const code = button.getAttribute('data-copy-static') || '';
@@ -794,6 +819,31 @@
       try {
         localStorage.removeItem('ps.githubToken');
       } catch (_) {}
+    }
+
+    // Favorites are stored locally per browser (nothing is uploaded).
+    const FAVORITES_KEY = 'ps.favorites';
+    function loadFavorites() {
+      try {
+        const raw = JSON.parse(localStorage.getItem(FAVORITES_KEY) || '[]');
+        return Array.isArray(raw) ? raw : [];
+      } catch (_) { return []; }
+    }
+    function saveFavorites(list) {
+      try { localStorage.setItem(FAVORITES_KEY, JSON.stringify(list)); } catch (_) {}
+    }
+    let favorites = loadFavorites();
+    function isFavorite(name) {
+      return favorites.indexOf(name) !== -1;
+    }
+    function toggleFavorite(name) {
+      if (!name) return;
+      favorites = isFavorite(name)
+        ? favorites.filter(function (n) { return n !== name; })
+        : favorites.concat([name]);
+      saveFavorites(favorites);
+      renderFavoriteButtons();
+      applyFilters();
     }
 
     function persistDraft() {
@@ -1215,14 +1265,17 @@
       const query = String(searchInput && searchInput.value || '').trim().toLowerCase();
       const category = String(categorySelect && categorySelect.value || 'all');
       const sort = String(sortSelect && sortSelect.value || 'popularity-desc');
+      const onlyFavorites = !!(favoritesOnly && favoritesOnly.checked);
 
       const visibleCards = cards.filter(function (card) {
-        const name = String(card.getAttribute('data-name') || '').toLowerCase();
+        const rawName = String(card.getAttribute('data-name') || '');
+        const name = rawName.toLowerCase();
         const searchBlob = String(card.getAttribute('data-search') || '').toLowerCase();
         const cardCategory = String(card.getAttribute('data-category') || 'other');
         const matchesQuery = !query || name.includes(query) || searchBlob.includes(query);
         const matchesCategory = category === 'all' || cardCategory === category;
-        const visible = matchesQuery && matchesCategory;
+        const matchesFavorite = !onlyFavorites || isFavorite(rawName);
+        const visible = matchesQuery && matchesCategory && matchesFavorite;
         card.classList.toggle('hidden', !visible);
         return visible;
       });
@@ -1233,6 +1286,11 @@
         const popA = Number(a.getAttribute('data-popularity') || '0');
         const popB = Number(b.getAttribute('data-popularity') || '0');
 
+        if (sort === 'favorites-first') {
+          const favDiff = (isFavorite(nameB) ? 1 : 0) - (isFavorite(nameA) ? 1 : 0);
+          if (favDiff !== 0) return favDiff;
+          return popB - popA;
+        }
         if (sort === 'name-asc') return nameA.localeCompare(nameB);
         if (sort === 'name-desc') return nameB.localeCompare(nameA);
         if (sort === 'popularity-asc') return popA - popB;
@@ -1249,6 +1307,7 @@
     searchInput && searchInput.addEventListener('input', applyFilters);
     categorySelect && categorySelect.addEventListener('change', applyFilters);
     sortSelect && sortSelect.addEventListener('change', applyFilters);
+    favoritesOnly && favoritesOnly.addEventListener('change', applyFilters);
     communityName && communityName.addEventListener('input', function () {
       persistDraft();
       renderCommunityPreview();

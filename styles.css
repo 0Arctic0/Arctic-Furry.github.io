@@ -154,6 +154,13 @@ button.button:disabled {
   transform: none;
 }
 
+/* A favorited card's button (private servers page). */
+.button.fav-on,
+button.button.fav-on {
+  background: var(--accent-2);
+  box-shadow: 0 0 0 2px rgba(124, 136, 255, .35);
+}
+
 .stack {
   display: grid;
   gap: 14px;

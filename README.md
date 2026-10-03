@@ -14,7 +14,7 @@ Static GitHub Pages join helper for Roblox public servers and private server lin
   - Roblox game URLs with `privateServerLinkCode=...`
 - Froststrap-style invite parsing from pasted links
 - Simple menu page for generating join links
-- Dedicated private servers page
+- Dedicated private servers page with local favorites (favorite, filter, and sort by favorites)
 - Changelogs page
 - Windows desktop app (`windows-app/`) that pastes a link and instantly launches Froststrap with it
 
@@ -24,8 +24,8 @@ Static GitHub Pages join helper for Roblox public servers and private server lin
 - `/invite` - opens a generated join page
 - `/ps` - private servers and community submissions
 - `/changelogs` - website update history
-- `/snipe` - user sniper: find and join a specific user's public server
-- `/servers` - server browser: see every public server of a game and join one directly
+- `/snipe` - user sniper: find and join a specific user's public server (keeps a saved watch target)
+- `/servers` - server browser: see every public server of a game, join one directly, join the least-full server, or copy all links
 
 Examples:
 

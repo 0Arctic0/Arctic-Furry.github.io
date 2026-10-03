@@ -3,6 +3,18 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg" />
+  <link rel="alternate icon" href="../windows-app/icon.ico" />
+  <meta name="description" content="Browse every public server of any Roblox game with live player counts, and join the exact one you want." />
+  <link rel="canonical" href="https://arctic0dev.github.io/servers/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Arctic Joiner" />
+  <meta property="og:title" content="Server Browser - Arctic Joiner" />
+  <meta property="og:description" content="Browse every public server of any Roblox game with live player counts, and join the exact one you want." />
+  <meta property="og:url" content="https://arctic0dev.github.io/servers/" />
+  <meta property="og:image" content="https://arctic0dev.github.io/favicon.svg" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="theme-color" content="#0f1117" />
   <title>Server Browser</title>
   <link rel="stylesheet" href="../styles.css" />
 </head>
@@ -22,8 +34,15 @@
       <div class="buttons">
         <button class="button" id="server-load">Browse Servers</button>
         <button class="button secondary" id="server-refresh">Refresh</button>
+        <button class="button secondary" id="server-least">Join Least Full</button>
+        <button class="button secondary" id="server-copy-all">Copy All Links</button>
         <a class="button secondary" href="../menu/">Open Menu</a>
       </div>
+
+      <label style="display: flex; align-items: center; gap: 8px; margin: 6px 0 2px;">
+        <input type="checkbox" id="server-autorefresh" checked />
+        <span class="small">Auto-refresh every 30 seconds while a game is loaded</span>
+      </label>
 
       <div class="stack" id="server-game-info" style="margin-top: 12px;"></div>
       <p class="small status" id="server-status">Waiting for a game link...</p>
@@ -41,6 +60,10 @@
     var currentPlaceId = null;
     var autoTimer = null;
     var currentGameName = null;
+    var allServers = [];
+    var leastBtn = document.getElementById('server-least');
+    var copyAllBtn = document.getElementById('server-copy-all');
+    var autoRefreshBox = document.getElementById('server-autorefresh');
 
     var RECENT_KEY = 'joiner.recentGames';
 
@@ -199,6 +222,7 @@
 
     function render(servers) {
       servers.sort(function (a, b) { return (b.playing || 0) - (a.playing || 0); });
+      allServers = servers;
       listEl.textContent = '';
       if (!servers.length) {
         setStatus('No public servers right now.', true);
@@ -255,13 +279,41 @@
 
     loadBtn.addEventListener('click', loadGame);
     refreshBtn.addEventListener('click', function () { if (currentPlaceId) loadServers(); });
+
+    leastBtn.addEventListener('click', function () {
+      if (!currentPlaceId || !allServers.length) {
+        setStatus('Load a game first to pick its least-full server.', true);
+        return;
+      }
+      var best = null;
+      allServers.forEach(function (s) {
+        if ((s.playing || 0) >= (s.maxPlayers || 0)) return; // skip full servers
+        if (!best || (s.playing || 0) < (best.playing || 0)) best = s;
+      });
+      if (!best) { setStatus('Every server is full right now.', true); return; }
+      setStatus('Joining the emptiest server: ' + best.playing + ' / ' + best.maxPlayers + ' players.');
+      window.location.href = 'roblox://placeId=' + currentPlaceId + '&gameInstanceId=' + best.id;
+    });
+
+    copyAllBtn.addEventListener('click', function () {
+      if (!currentPlaceId || !allServers.length) {
+        setStatus('Load a game first to copy its server links.', true);
+        return;
+      }
+      var lines = allServers.map(function (s) {
+        return buildInviteLink(currentPlaceId, s.id);
+      });
+      copyText(lines.join('\n'), 'Copied ' + lines.length + ' join links - one per server.');
+    });
     gameBox.addEventListener('keydown', function (e) {
       if (e.key === 'Enter') loadGame();
     });
 
     // Auto-refresh the server list every 30 seconds while a game is loaded.
     autoTimer = setInterval(function () {
-      if (currentPlaceId && !loadBtn.disabled) loadServers();
+      if (!currentPlaceId || loadBtn.disabled) return;
+      if (autoRefreshBox && !autoRefreshBox.checked) return;
+      loadServers();
     }, 30000);
 
     renderRecentGames();

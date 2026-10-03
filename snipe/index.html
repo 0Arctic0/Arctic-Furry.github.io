@@ -3,6 +3,18 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg" />
+  <link rel="alternate icon" href="../windows-app/icon.ico" />
+  <meta name="description" content="Find the exact public server a Roblox user is in and join them with one tap." />
+  <link rel="canonical" href="https://arctic0dev.github.io/snipe/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Arctic Joiner" />
+  <meta property="og:title" content="User Sniper - Arctic Joiner" />
+  <meta property="og:description" content="Find the exact public server a Roblox user is in and join them with one tap." />
+  <meta property="og:url" content="https://arctic0dev.github.io/snipe/" />
+  <meta property="og:image" content="https://arctic0dev.github.io/favicon.svg" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="theme-color" content="#0f1117" />
   <title>User Sniper</title>
   <link rel="stylesheet" href="../styles.css" />
 </head>
@@ -31,6 +43,12 @@
         <a class="button secondary" href="../menu/">Open Menu</a>
       </div>
 
+      <div class="buttons hidden" id="snipe-saved" style="margin-top: 10px;">
+        <button class="button secondary" id="snipe-resume">Resume watching</button>
+        <button class="button secondary" id="snipe-clear">Clear saved watch</button>
+      </div>
+      <p class="small hidden" id="snipe-saved-note"></p>
+
       <div class="stack" id="snipe-identity" style="margin-top: 12px;"></div>
 
       <div class="field">
@@ -58,6 +76,53 @@
     var copyBtn = document.getElementById('snipe-copy');
     var currentDeepLink = '';
     var watchTimer = null;
+    var watchBoxEl = document.getElementById('snipe-watch');
+    var savedBar = document.getElementById('snipe-saved');
+    var savedNote = document.getElementById('snipe-saved-note');
+    var resumeBtn = document.getElementById('snipe-resume');
+    var clearSavedBtn = document.getElementById('snipe-clear');
+    var WATCH_KEY = 'snipe.watch';
+
+    // A saved watch lets "Keep watching" survive a page reload/close.
+    function loadSavedWatch() {
+      try {
+        var raw = JSON.parse(localStorage.getItem(WATCH_KEY) || 'null');
+        return raw && raw.who ? raw : null;
+      } catch (e) { return null; }
+    }
+    function saveWatch(who, placeId) {
+      if (!who) return;
+      try { localStorage.setItem(WATCH_KEY, JSON.stringify({ who: who, placeId: placeId || '' })); } catch (e) {}
+      renderSavedWatch();
+    }
+    function clearSavedWatch() {
+      try { localStorage.removeItem(WATCH_KEY); } catch (e) {}
+      renderSavedWatch();
+    }
+    function renderSavedWatch() {
+      var saved = loadSavedWatch();
+      if (savedBar) savedBar.classList.toggle('hidden', !saved);
+      if (savedNote) {
+        savedNote.classList.toggle('hidden', !saved);
+        if (saved) {
+          savedNote.textContent = 'Saved watch: ' + saved.who +
+            (saved.placeId ? ' (place ' + saved.placeId + ')' : '') + '.';
+        }
+      }
+    }
+    resumeBtn && resumeBtn.addEventListener('click', function () {
+      var saved = loadSavedWatch();
+      if (!saved) return;
+      userBox.value = saved.who;
+      if (saved.placeId) gameBox.value = saved.placeId;
+      if (watchBoxEl) watchBoxEl.checked = true;
+      startSnipe();
+    });
+    clearSavedBtn && clearSavedBtn.addEventListener('click', clearSavedWatch);
+    watchBoxEl && watchBoxEl.addEventListener('change', function () {
+      if (!watchBoxEl.checked) clearSavedWatch();
+    });
+    renderSavedWatch();
 
     function stopWatch() {
       if (watchTimer) { clearTimeout(watchTimer); watchTimer = null; }
@@ -148,6 +213,7 @@
 
       var user = null;
       var placeId = parseGameLink(gameBox.value);
+      if (watchBoxEl && watchBoxEl.checked) saveWatch(who, placeId);
 
       Promise.resolve()
         .then(function () {
@@ -202,6 +268,7 @@
             return;
           }
           stopWatch();
+          clearSavedWatch();
           currentDeepLink = 'roblox://placeId=' + found.placeId + '&gameInstanceId=' + found.serverId;
           setResult('Found ' + user.name + '! Server: ' + found.serverId);
           joinRow.classList.remove('hidden');

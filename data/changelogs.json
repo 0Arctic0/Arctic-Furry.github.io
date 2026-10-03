@@ -1,6 +1,17 @@
 [
   {
     "date": "2026-10-03",
+    "title": "Site: favorites, server tools, saved sniper targets",
+    "items": [
+      "Private servers page: favorite any server with the new Favorite button, then use Show only favorites or Favorites first to keep your picks handy. Favorites are saved in your browser.",
+      "Server browser: added Join Least Full (jumps into the emptiest server), Copy All Links, and a switch to turn the 30-second auto-refresh on or off.",
+      "User Sniper: Keep watching targets are now saved, so you can resume watching after closing or reloading the page.",
+      "Every page now has its own icon and description, so links shared in Discord show a proper preview.",
+      "Fixed the 404 redirect list (it was missing the server browser and sniper routes) and a broken card on the private servers page."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "title": "Windows app v2.6.2: install button in settings, pins removed",
     "items": [
       "The install button now also appears inside the Froststrap settings panel, so a pending update can be installed while that panel is open.",
