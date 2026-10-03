@@ -3,7 +3,7 @@ rem One-time install: downloads the latest ArcticJoiner from GitHub, builds it,
 rem and puts a single ArcticJoiner.exe into your Downloads\ArcticJoiner folder.
 setlocal
 set "DIR=%USERPROFILE%\Downloads\ArcticJoiner"
-set "BASE=https://raw.githubusercontent.com/Arctic-Furry/Arctic-Furry.github.io/main/windows-app"
+set "BASE=https://raw.githubusercontent.com/Arctic00Fox/Arctic00Fox.github.io/main/windows-app"
 
 echo === ArcticJoiner install ===
 echo.

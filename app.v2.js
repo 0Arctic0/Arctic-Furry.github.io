@@ -131,7 +131,7 @@
   }
 
   function buildCommunityIssueUrl(payload) {
-    const url = new URL('https://github.com/Arctic-Furry/arctic-furry.github.io/issues/new');
+    const url = new URL('https://github.com/Arctic00Fox/Arctic00Fox.github.io/issues/new');
     url.searchParams.set('title', 'Community private server: ' + payload.gameName);
     url.searchParams.set('body', [
       '## Community Private Server Submission',
@@ -163,14 +163,14 @@
     const url = new URL('https://discord.com/oauth2/authorize');
     url.searchParams.set('client_id', '1521410277600661554');
     url.searchParams.set('response_type', 'token');
-    url.searchParams.set('redirect_uri', 'https://arctic-furry.github.io/ps/');
+    url.searchParams.set('redirect_uri', 'https://arctic00fox.github.io/ps/');
     url.searchParams.set('scope', 'identify');
     url.searchParams.set('prompt', 'consent');
     return url.toString();
   }
 
-  const GITHUB_OWNER = 'Arctic-Furry';
-  const GITHUB_REPO = 'arctic-furry.github.io';
+  const GITHUB_OWNER = 'Arctic00Fox';
+  const GITHUB_REPO = 'arctic00fox.github.io';
   const COMMUNITY_POSTS_PATH = 'data/community-posts.json';
   const CHANGELOGS_PATH = 'data/changelogs.json';
 
