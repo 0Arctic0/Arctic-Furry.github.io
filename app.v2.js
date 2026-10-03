@@ -131,7 +131,7 @@
   }
 
   function buildCommunityIssueUrl(payload) {
-    const url = new URL('https://github.com/Arctic00Fox/Arctic00Fox.github.io/issues/new');
+    const url = new URL('https://github.com/Arctic00Fox/Arctic-Furry.github.io/issues/new');
     url.searchParams.set('title', 'Community private server: ' + payload.gameName);
     url.searchParams.set('body', [
       '## Community Private Server Submission',

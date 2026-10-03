@@ -1578,7 +1578,7 @@ namespace ArcticJoiner
         public const char Q = '"';
 
         public const string BaseUrl =
-            "https://raw.githubusercontent.com/Arctic00Fox/Arctic00Fox.github.io/main/windows-app/";
+            "https://raw.githubusercontent.com/Arctic00Fox/Arctic-Furry.github.io/main/windows-app/";
         public const string VersionUrl = BaseUrl + "version.txt";
         public const string SourceUrl = BaseUrl + "ArcticJoiner.cs";
         public const string IconUrl = BaseUrl + "icon.ico";
@@ -1635,7 +1635,7 @@ namespace ArcticJoiner
         {
             if (rawUrl.StartsWith(BaseUrl, StringComparison.OrdinalIgnoreCase))
             {
-                return "https://api.github.com/repos/Arctic00Fox/Arctic00Fox.github.io/contents/windows-app/" +
+                return "https://api.github.com/repos/Arctic00Fox/Arctic-Furry.github.io/contents/windows-app/" +
                        rawUrl.Substring(BaseUrl.Length);
             }
             return null;
