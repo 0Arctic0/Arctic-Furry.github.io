@@ -347,6 +347,7 @@
     const placeLabel = byId('place-label');
     const jobLabel = byId('job-label');
     const openApp = byId('open-app');
+    const openArctic = byId('open-arctic');
     const openWeb = byId('open-web');
     const description = byId('invite-description');
     const deepLink = mode === 'private'
@@ -451,6 +452,14 @@
     }
 
     openApp && openApp.addEventListener('click', openRoblox);
+    if (openArctic) {
+      openArctic.addEventListener('click', function () {
+        // Hand the same deep link to the desktop app over arcticjoiner://
+        const appLink = 'arcticjoiner://' + deepLink.replace(/^roblox:\/?\/?/, '');
+        window.location.href = appLink;
+        setStatus('If Arctic Joiner is installed, it just launched with this server.', 'ok');
+      });
+    }
 
     if (autoJoinEnabled) {
       setStatus('Auto-Join is ON: opening Roblox…');

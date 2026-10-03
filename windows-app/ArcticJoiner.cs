@@ -93,6 +93,7 @@ namespace ArcticJoiner
         public int DeleteMods = 0;        // second keybind: extract a link from copied text
         public string DeleteKey = "Delete";
         public bool AlwaysOnTop = false;
+        public bool KillBeforeJoin = true;
 
         private static string SettingsFile
         {
@@ -140,6 +141,7 @@ namespace ArcticJoiner
                         else if (key == "deleteMods") { int n; if (int.TryParse(val, out n)) s.DeleteMods = n; }
                         else if (key == "deleteKey") s.DeleteKey = val.Length > 0 ? val : "Delete";
                         else if (key == "alwaysOnTop") s.AlwaysOnTop = val == "1";
+                        else if (key == "killBeforeJoin") s.KillBeforeJoin = val == "1";
                     }
                 }
             }
@@ -162,6 +164,7 @@ namespace ArcticJoiner
                     .AppendLine("deleteMods=" + DeleteMods)
                     .AppendLine("deleteKey=" + DeleteKey)
                     .AppendLine("alwaysOnTop=" + (AlwaysOnTop ? "1" : "0"))
+                    .AppendLine("killBeforeJoin=" + (KillBeforeJoin ? "1" : "0"))
                     .ToString());
             }
             catch { }
@@ -179,6 +182,7 @@ namespace ArcticJoiner
         private readonly CheckBox _autoJoinCheck;
         private readonly CheckBox _closeAfterCheck;
         private readonly CheckBox _onTopCheck;
+        private readonly CheckBox _killCheck;
         private readonly TextBox _froststrapPathBox;
         private readonly Button _browseButton;
         private readonly Button _openSettingsButton;
@@ -318,6 +322,19 @@ namespace ArcticJoiner
             {
                 TopMost = _onTopCheck.Checked;
                 SaveTopMost(_onTopCheck.Checked);
+            };
+
+            _killCheck = new CheckBox
+            {
+                Text = "Close Roblox before joining",
+                Checked = _settings.KillBeforeJoin,
+                AutoSize = true,
+                Location = new Point(16, 172)
+            };
+            _killCheck.CheckedChanged += (s, e) =>
+            {
+                _settings.KillBeforeJoin = _killCheck.Checked;
+                _settings.Save();
             };
 
             _openSettingsButton = new Button
@@ -497,6 +514,7 @@ namespace ArcticJoiner
             Controls.Add(_closeAfterCheck);
             Controls.Add(_openSettingsButton);
             Controls.Add(_onTopCheck);
+            Controls.Add(_killCheck);
             Controls.Add(_settingsPanel);
             Controls.Add(_updateButton);
 
@@ -523,6 +541,33 @@ namespace ArcticJoiner
             _queueTimer = new System.Windows.Forms.Timer { Interval = 1000 };
             _queueTimer.Tick += (s, e) => ProcessIncomingLink();
             _queueTimer.Start();
+
+            // Register arcticjoiner:// so the website can hand links straight
+            // to this app instead of relying on the roblox:// handler.
+            RegisterArcticProtocol();
+        }
+
+        private static void RegisterArcticProtocol()
+        {
+            try
+            {
+                string exe = Application.ExecutablePath;
+                using (Microsoft.Win32.RegistryKey root =
+                    Microsoft.Win32.Registry.CurrentUser.CreateSubKey("Software\Classes\arcticjoiner"))
+                {
+                    root.SetValue("", "URL:Arctic Joiner Protocol");
+                    root.SetValue("URL Protocol", "");
+                    using (Microsoft.Win32.RegistryKey icon = root.CreateSubKey("DefaultIcon"))
+                    {
+                        icon.SetValue("", "\"" + exe + "\",0");
+                    }
+                    using (Microsoft.Win32.RegistryKey command = root.CreateSubKey("shell\open\command"))
+                    {
+                        command.SetValue("", "\"" + exe + "\" "%1\"");
+                    }
+                }
+            }
+            catch { }
         }
 
         private void ProcessIncomingLink()
@@ -586,8 +631,11 @@ namespace ArcticJoiner
             {
                 // Close any running Roblox/Froststrap first so the new join does
                 // not stack a second client in the taskbar.
-                KillRunningRoblox();
-                System.Threading.Thread.Sleep(300); // let Windows release the old client
+                if (_settings.KillBeforeJoin)
+                {
+                    KillRunningRoblox();
+                    System.Threading.Thread.Sleep(300); // let Windows release the old client
+                }
 
                 string exe = _settings.FroststrapPath;
                 if (!string.IsNullOrWhiteSpace(exe) && File.Exists(exe))
@@ -1202,6 +1250,12 @@ namespace ArcticJoiner
 
             // Already a deep link - pass straight through.
             if (text.StartsWith("roblox://", StringComparison.OrdinalIgnoreCase)) return text;
+
+            // Our own protocol from the website: arcticjoiner://placeId=... works the same.
+            if (text.StartsWith("arcticjoiner://", StringComparison.OrdinalIgnoreCase))
+            {
+                return "roblox://" + text.Substring("arcticjoiner://".Length);
+            }
 
             string placeId = null, instanceId = null, launchData = null, privateCode = null;
 
