@@ -475,6 +475,17 @@ namespace ArcticJoiner
                 ApplyFastFlags();
             };
 
+            var revertFlagsButton = new Button
+            {
+                Text = "Revert fast flags",
+                Location = new Point(230, 210),
+                Size = new Size(120, 26)
+            };
+            revertFlagsButton.Click += (s, e) =>
+            {
+                RevertFastFlags();
+            };
+
             _changeHotkeyButton = new Button
             {
                 Text = "Change hotkey (" + HotkeyDescription() + ")...",
@@ -527,6 +538,7 @@ namespace ArcticJoiner
             _settingsPanel.Controls.Add(_hotkeyLabel);
             _settingsPanel.Controls.Add(_changeHotkeyButton);
             _settingsPanel.Controls.Add(fastFlagsButton);
+            _settingsPanel.Controls.Add(revertFlagsButton);
             _settingsPanel.Controls.Add(_extractLabel);
             _settingsPanel.Controls.Add(changeDeleteKeyButton);
             _settingsPanel.Controls.Add(hint);
@@ -1171,6 +1183,33 @@ namespace ArcticJoiner
                 : "No Froststrap/Roblox config folder found - install Froststrap first, then try again.", written > 0);
         }
 
+        // Removes the fast-flags config so Roblox launches with default settings again.
+        private void RevertFastFlags()
+        {
+            string localApp = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            string[] targets =
+            {
+                Path.Combine(localApp, "Froststrap", "Modifications", "ClientSettings", "ClientAppSettings.json"),
+                Path.Combine(localApp, "Roblox", "ClientAppSettings.json")
+            };
+            int removed = 0;
+            foreach (string file in targets)
+            {
+                try
+                {
+                    if (File.Exists(file))
+                    {
+                        File.Delete(file);
+                        removed++;
+                    }
+                }
+                catch { }
+            }
+            SetStatus(removed > 0
+                ? "Fast flags reverted - removed " + removed + " config file(s). Default settings restored."
+                : "No fast-flags config found to remove.", removed > 0);
+        }
+
         private static string DetectFroststrap()
         {
             string localApp = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
@@ -1481,7 +1520,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "2.4.1";
+        public const string Version = "2.4.2";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.
