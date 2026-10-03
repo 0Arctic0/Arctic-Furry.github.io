@@ -493,10 +493,11 @@ namespace FroststrapJoiner
                         if (placeId == null && path.IndexOf("/games/", StringComparison.OrdinalIgnoreCase) >= 0)
                         {
                             string[] parts = path.Split('/');
+                            long parsedId;
                             for (int i = 0; i < parts.Length - 1; i++)
                             {
                                 if (parts[i].Equals("games", StringComparison.OrdinalIgnoreCase) &&
-                                    long.TryParse(parts[i + 1], out long id))
+                                    long.TryParse(parts[i + 1], out parsedId))
                                 {
                                     placeId = parts[i + 1];
                                     break;
