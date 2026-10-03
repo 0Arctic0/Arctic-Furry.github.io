@@ -1389,7 +1389,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "2.2.0";
+        public const string Version = "2.3.0";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.
