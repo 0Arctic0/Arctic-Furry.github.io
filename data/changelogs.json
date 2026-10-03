@@ -1,6 +1,13 @@
 [
   {
     "date": "2026-10-03",
+    "title": "New /hop page",
+    "items": [
+      "Added /hop: paste a game and hop into a different public server on demand - pick the emptiest server or let it keep hopping every 30 seconds."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "title": "Site: favorites, server tools, saved sniper targets",
     "items": [
       "Private servers page: favorite any server with the new Favorite button, then use Show only favorites or Favorites first to keep your picks handy. Favorites are saved in your browser.",
