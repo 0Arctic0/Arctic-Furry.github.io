@@ -17,6 +17,8 @@
         <input id="server-game" placeholder="https://www.roblox.com/games/1962086868/Tower-of-Hell" />
       </div>
 
+      <div class="stack" id="recent-games" style="margin-bottom: 8px;"></div>
+
       <div class="buttons">
         <button class="button" id="server-load">Browse Servers</button>
         <button class="button secondary" id="server-refresh">Refresh</button>
@@ -38,6 +40,49 @@
     var infoEl = document.getElementById('server-game-info');
     var currentPlaceId = null;
     var autoTimer = null;
+    var currentGameName = null;
+
+    var RECENT_KEY = 'joiner.recentGames';
+
+    function loadRecentGames() {
+      try { return JSON.parse(localStorage.getItem(RECENT_KEY) || '[]'); } catch (e) { return []; }
+    }
+
+    function saveRecentGames(list) {
+      try { localStorage.setItem(RECENT_KEY, JSON.stringify(list)); } catch (e) {}
+    }
+
+    function rememberGame(placeId, name) {
+      var list = loadRecentGames().filter(function (g) { return g.id !== placeId; });
+      list.unshift({ id: placeId, name: name });
+      if (list.length > 5) list = list.slice(0, 5);
+      saveRecentGames(list);
+      renderRecentGames();
+    }
+
+    function renderRecentGames() {
+      var box = document.getElementById('recent-games');
+      if (!box) return;
+      var list = loadRecentGames();
+      box.textContent = '';
+      if (!list.length) return;
+      list.forEach(function (g) {
+        var btn = document.createElement('button');
+        btn.className = 'button secondary';
+        btn.style.margin = '0 6px 6px 0';
+        btn.style.display = 'inline-block';
+        btn.setAttribute('data-recent-game', String(g.id));
+        btn.textContent = g.name || ('Place ' + g.id);
+        box.appendChild(btn);
+      });
+    }
+
+    document.getElementById('recent-games').addEventListener('click', function (e) {
+      var btn = e.target && e.target.closest ? e.target.closest('[data-recent-game]') : null;
+      if (!btn) return;
+      gameBox.value = btn.getAttribute('data-recent-game');
+      loadGame();
+    });
 
     function setStatus(text, error) {
       statusEl.textContent = text;
@@ -115,12 +160,14 @@
             throw new Error('Could not load that game.');
           }
           var g = games[0];
+          currentGameName = g.name;
           infoEl.innerHTML =
             '<div style="display:flex; align-items:center; gap:12px;">' +
             '<img width="64" height="64" style="border-radius:8px;" alt="game icon" src="https://thumbnails.roproxy.com/v1/places/gameicons?placeIds=' +
             placeId + '&size=150x150&format=Png&isCircular=false" />' +
             '<div><strong>' + escapeHtml(g.name) + '</strong>' +
             '<div class="small">' + (g.playing || 0).toLocaleString() + ' playing right now - place ' + placeId + '</div></div></div>';
+          rememberGame(placeId, g.name);
           loadServers();
         })
         .catch(function (err) { setStatus('Failed: ' + err.message, true); })
@@ -167,13 +214,40 @@
           '<div class="small">' + pct + '% full - server ' + escapeHtml(String(s.id)) + '</div></div>' +
           '<div class="buttons" style="margin:0;">' +
           '<button class="button" data-server-id="' + escapeHtml(String(s.id)) + '">Join</button>' +
+          '<button class="button secondary" data-copy-server="' + escapeHtml(String(s.id)) + '">Copy Invite Link</button>' +
           '</div></div>';
         listEl.appendChild(row);
       });
       setStatus('Showing ' + servers.length + ' public servers. Sorted by most players. Auto-refreshes every 30 seconds.');
     }
 
+    function buildInviteLink(placeId, serverId) {
+      // absolute path works no matter where the site is hosted
+      return new URL('../invite/?placeId=' + placeId + '&gameInstanceId=' + serverId, window.location.href).toString();
+    }
+
+    function copyText(text, doneMessage) {
+      var finish = function (ok) { setStatus(ok ? doneMessage : 'Copy failed - select and copy manually.', !ok); };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function () { finish(true); }, function () { finish(false); });
+      } else {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        var ok = false;
+        try { ok = document.execCommand('copy'); } catch (e) {}
+        document.body.removeChild(ta);
+        finish(ok);
+      }
+    }
+
     listEl.addEventListener('click', function (e) {
+      var copyBtn = e.target && e.target.closest ? e.target.closest('[data-copy-server]') : null;
+      if (copyBtn && currentPlaceId) {
+        copyText(buildInviteLink(currentPlaceId, copyBtn.getAttribute('data-copy-server')), 'Invite link copied - anyone who opens it joins this exact server.');
+        return;
+      }
       var btn = e.target && e.target.closest ? e.target.closest('[data-server-id]') : null;
       if (!btn || !currentPlaceId) return;
       window.location.href = 'roblox://placeId=' + currentPlaceId + '&gameInstanceId=' + btn.getAttribute('data-server-id');
@@ -189,6 +263,8 @@
     autoTimer = setInterval(function () {
       if (currentPlaceId && !loadBtn.disabled) loadServers();
     }, 30000);
+
+    renderRecentGames();
   })();
   </script>
 </body>

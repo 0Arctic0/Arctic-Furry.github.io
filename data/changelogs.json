@@ -6,7 +6,8 @@
       "Added /servers: paste a game link to see every public server with player counts and one-tap join; auto-refreshes every 30 seconds.",
       "Invite pages now show the real game name instead of just the place ID.",
       "The user sniper gained a Keep watching mode that rescans every 30 seconds until the target is found.",
-      "Windows app v2.1.0: single instance with link forwarding, plus a toast notification showing the launched game's name."
+      "Windows app v2.1.0: single instance with link forwarding, plus a toast notification showing the launched game's name.",
+      "Server browser: per-server Copy Invite Link button that shares an exact-server join link, and recent games quick-select."
     ]
   },
   {
