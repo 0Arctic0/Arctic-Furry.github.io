@@ -65,7 +65,7 @@
 
     // Tries the main mirror first, then an alternate in case of Cloudflare blocks.
     function mirrorAlternatives(url) {
-      return [url, url.replace('.roproxy.com', '.rprxy.xyz')];
+      return [url, 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url.replace('.roproxy.com', '.roblox.com'))];
     }
 
     function firstOk(urls) {

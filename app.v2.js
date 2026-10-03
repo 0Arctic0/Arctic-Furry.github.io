@@ -387,12 +387,12 @@
       // Fetch the game's name so the invite page shows what you are joining.
       // multiget-place-details now needs auth, so go place -> universe -> game.
       firstOk(['https://apis.roproxy.com/universes/v1/places/' + placeId + '/universe',
-          'https://apis.rprxy.xyz/universes/v1/places/' + placeId + '/universe'])
+          'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://apis.roblox.com/universes/v1/places/' + placeId + '/universe')])
         .then(function (u) { return u; })
         .then(function (u) {
           if (!u || !u.universeId) return null;
           return firstOk(['https://games.roproxy.com/v1/games?universeIds=' + u.universeId,
-              'https://games.rprxy.xyz/v1/games?universeIds=' + u.universeId]);
+              'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://games.roblox.com/v1/games?universeIds=' + u.universeId)]);
         })
         .then(function (root) {
           var game = root && root.data && root.data[0];

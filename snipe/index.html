@@ -86,7 +86,7 @@
     // Tries the main mirror first, then alternates. Some networks get
     // Cloudflare challenges on one mirror; the other usually works.
     function mirrorAlternatives(url) {
-      return [url, url.replace('.roproxy.com', '.rprxy.xyz')];
+      return [url, 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url.replace('.roproxy.com', '.roblox.com'))];
     }
 
     function firstOk(urls, body) {
@@ -153,11 +153,17 @@
           return postApi('https://users.roproxy.com/v1/usernames/users', {
             usernames: [who],
             excludeBannedUsers: false
+          }).catch(function () {
+            // POST mirrors unavailable - fall back to the GET search API via allorigins.
+            return getApi('https://users.roblox.com/v1/users/search?keyword=' + encodeURIComponent(who) + '&limit=10')
+              .then(function (data) {
+                var hit = (data.data || []).filter(function (u) { return u.name.toLowerCase() === who.toLowerCase(); })[0];
+                if (!hit) throw new Error('No Roblox user with that name was found.');
+                return { id: hit.id, name: hit.name };
+              });
           }).then(function (data) {
-            if (!data.data || !data.data.length) {
-              throw new Error('No Roblox user with that name was found.');
-            }
-            return getApi('https://users.roproxy.com/v1/users/' + data.data[0].id);
+            var id = data.data ? data.data[0].id : data.id;
+            return getApi('https://users.roproxy.com/v1/users/' + id);
           });
         })
         .then(function (profile) {
