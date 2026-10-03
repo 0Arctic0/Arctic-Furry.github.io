@@ -25,12 +25,21 @@ extra clicks.
 
 ## Install (fetches the latest from GitHub)
 
-Download **`install.cmd`** from this folder (on GitHub: open it, click the
-Raw/Download button) and **double-click it** — or run it from `cmd`.
+**Easiest — one command, no downloads:** open `cmd` (Windows key, type `cmd`,
+Enter), then paste this single line and press Enter. It creates the folder in
+your Downloads, downloads the latest source, builds the app, and opens it:
 
-It downloads the latest source from GitHub, builds it with the compiler that
-ships with Windows, and creates a `FroststrapJoiner` folder in your Downloads
-with everything inside it:
+```
+mkdir "%USERPROFILE%\Downloads\FroststrapJoiner" 2>nul & curl -fsSL -o "%USERPROFILE%\Downloads\FroststrapJoiner\FroststrapJoiner.cs" "https://raw.githubusercontent.com/Arctic-Furry/Arctic-Furry.github.io/main/windows-app/FroststrapJoiner.cs?nocache=%RANDOM%%RANDOM%" && "%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /nologo /target:winexe /optimize+ "/out:%USERPROFILE%\Downloads\FroststrapJoiner\FroststrapJoiner.exe" /r:System.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll "%USERPROFILE%\Downloads\FroststrapJoiner\FroststrapJoiner.cs" && start "" "%USERPROFILE%\Downloads\FroststrapJoiner\FroststrapJoiner.exe"
+```
+
+If your Windows is 32-bit, use this compiler path instead:
+`%WINDIR%\Microsoft.NET\Framework\v4.0.30319\csc.exe`
+
+**Alternative:** download **`install.cmd`** from this folder (on GitHub: open it,
+click the Raw/Download button) and **double-click it** — or run it from `cmd`.
+
+Either way you end up with:
 
 ```
 Downloads\FroststrapJoiner\FroststrapJoiner.exe
