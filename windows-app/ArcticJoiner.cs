@@ -57,6 +57,8 @@ namespace ArcticJoiner
         public bool CloseAfterJoin = false;
         public int HotkeyMods = 0;        // no modifiers needed by default
         public string HotkeyKey = "Insert";
+        public int DeleteMods = 0;        // second keybind: extract a link from copied text
+        public string DeleteKey = "Delete";
 
         private static string SettingsFile
         {
@@ -100,7 +102,9 @@ namespace ArcticJoiner
                         else if (key == "instantHotkeyJoin" || key == "autoJoinOnPaste") s.InstantHotkeyJoin = val == "1"; // legacy key migrated
                         else if (key == "closeAfterJoin") s.CloseAfterJoin = val == "1";
                         else if (key == "hotkeyMods") { int n; if (int.TryParse(val, out n)) s.HotkeyMods = n; }
-                        else if (key == "hotkeyKey") s.HotkeyKey = val.Length > 0 ? val : "J";
+                        else if (key == "hotkeyKey") s.HotkeyKey = val.Length > 0 ? val : "Insert";
+                        else if (key == "deleteMods") { int n; if (int.TryParse(val, out n)) s.DeleteMods = n; }
+                        else if (key == "deleteKey") s.DeleteKey = val.Length > 0 ? val : "Delete";
                     }
                 }
             }
@@ -120,6 +124,8 @@ namespace ArcticJoiner
                     .AppendLine("closeAfterJoin=" + (CloseAfterJoin ? "1" : "0"))
                     .AppendLine("hotkeyMods=" + HotkeyMods)
                     .AppendLine("hotkeyKey=" + HotkeyKey)
+                    .AppendLine("deleteMods=" + DeleteMods)
+                    .AppendLine("deleteKey=" + DeleteKey)
                     .ToString());
             }
             catch { }
@@ -143,15 +149,18 @@ namespace ArcticJoiner
         private readonly Button _updateButton;
         private readonly ComboBox _linkBox;
         private readonly Label _hotkeyLabel;
+        private readonly Label _extractLabel;
         private readonly Button _changeHotkeyButton;
         private readonly List<string> _history = new List<string>();
         private NotifyIcon _tray;
         private System.Windows.Forms.Timer _updateTimer;
         private bool _reallyExit;
         private bool _captureHotkey;
+        private int _captureTarget = 1; // 1 = join hotkey, 2 = extract keybind
         private bool _trayTipShown;
         private const int WM_HOTKEY = 0x0312;
         private const int HOTKEY_ID = 1;
+        private const int HOTKEY_ID2 = 2; // extract-link keybind (Delete)
         private string _lastAutoJoined = "";
 
         public JoinerForm(Settings settings)
@@ -246,7 +255,7 @@ namespace ArcticJoiner
             _openSettingsButton.Click += (s, e) =>
             {
                 _settingsPanel.Visible = !_settingsPanel.Visible;
-                ClientSize = new Size(ClientSize.Width, _settingsPanel.Visible ? 425 : 195);
+                ClientSize = new Size(ClientSize.Width, _settingsPanel.Visible ? 455 : 195);
             };
 
             _updateButton = new Button
@@ -263,7 +272,7 @@ namespace ArcticJoiner
             _settingsPanel = new Panel
             {
                 Location = new Point(16, 195),
-                Size = new Size(588, 228),
+                Size = new Size(588, 262),
                 Visible = false
             };
 
@@ -312,7 +321,7 @@ namespace ArcticJoiner
                 Text = "Tip: if the box above is empty, the joiner opens the roblox:// link directly, so whatever app is registered for it (Froststrap, if you set it as default) launches.",
                 AutoSize = false,
                 Size = new Size(588, 60),
-                Location = new Point(0, 160),
+                Location = new Point(0, 196),
                 ForeColor = SystemColors.GrayText
             };
 
@@ -347,6 +356,7 @@ namespace ArcticJoiner
             _changeHotkeyButton.Click += (s, e) =>
             {
                 _captureHotkey = true;
+                _captureTarget = 1;
                 // Unregister the current global hotkey first, otherwise pressing
                 // the new key ALSO fires the old hotkey and joins from the clipboard.
                 UnregisterHotkey();
@@ -356,12 +366,39 @@ namespace ArcticJoiner
                 SetStatus("Press the new hotkey now (Esc to cancel) - nothing will be pasted.", false);
             };
 
+            _extractLabel = new Label
+            {
+                Text = "Extract key: " + DeleteDescription() +
+                       " - pulls the Roblox link out of copied text, including [text](link) format, and joins it.",
+                AutoSize = false,
+                Size = new Size(588, 34),
+                Location = new Point(0, 160),
+                ForeColor = SystemColors.GrayText
+            };
+
+            var changeDeleteKeyButton = new Button
+            {
+                Text = "Change key (" + DeleteDescription() + ")...",
+                Location = new Point(230, 126),
+                Size = new Size(220, 26)
+            };
+            changeDeleteKeyButton.Click += (s, e) =>
+            {
+                _captureHotkey = true;
+                _captureTarget = 2;
+                UnregisterHotkey();
+                ActiveControl = changeDeleteKeyButton;
+                SetStatus("Press the new extract key now (Esc to cancel) - nothing will be pasted.", false);
+            };
+
             _settingsPanel.Controls.Add(pathLabel);
             _settingsPanel.Controls.Add(_froststrapPathBox);
             _settingsPanel.Controls.Add(_browseButton);
             _settingsPanel.Controls.Add(checkUpdateButton);
             _settingsPanel.Controls.Add(_hotkeyLabel);
             _settingsPanel.Controls.Add(_changeHotkeyButton);
+            _settingsPanel.Controls.Add(_extractLabel);
+            _settingsPanel.Controls.Add(changeDeleteKeyButton);
             _settingsPanel.Controls.Add(hint);
 
             Controls.Add(pasteLabel);
@@ -639,19 +676,70 @@ namespace ArcticJoiner
 
         protected override void WndProc(ref Message m)
         {
-            if (m.Msg == WM_HOTKEY && (int)m.WParam == HOTKEY_ID) OnHotkey();
+            if (m.Msg == WM_HOTKEY)
+            {
+                if ((int)m.WParam == HOTKEY_ID) OnHotkey();
+                else if ((int)m.WParam == HOTKEY_ID2) OnExtractHotkey();
+            }
             base.WndProc(ref m);
         }
 
         private void UnregisterHotkey()
         {
             try { UnregisterHotKey(Handle, HOTKEY_ID); } catch { }
+            try { UnregisterHotKey(Handle, HOTKEY_ID2); } catch { }
         }
 
         private static Keys ParseKey(string name)
         {
             try { return (Keys)new KeysConverter().ConvertFromString(name); }
             catch { return Keys.None; }
+        }
+
+        private string DeleteDescription()
+        {
+            string mods = "";
+            if ((_settings.DeleteMods & 2) != 0) mods += "Ctrl+";
+            if ((_settings.DeleteMods & 4) != 0) mods += "Shift+";
+            if ((_settings.DeleteMods & 1) != 0) mods += "Alt+";
+            return mods + _settings.DeleteKey;
+        }
+
+        // Second keybind: pull a Roblox link out of copied text, including the
+        // markdown [text](link) form, and join it.
+        private void OnExtractHotkey()
+        {
+            if (_captureHotkey) return;
+            string text = null;
+            for (int attempt = 0; attempt < 3 && text == null; attempt++)
+            {
+                try { text = Clipboard.GetText(); }
+                catch { System.Threading.Thread.Sleep(100); }
+            }
+            if (string.IsNullOrWhiteSpace(text)) return;
+
+            // Prefer what is inside (...) of a markdown link.
+            var paren = System.Text.RegularExpressions.Regex.Match(
+                text, "\\(([^\\s)]*roblox\\.com[^\\s)]*)\\)",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            string url = paren.Success ? paren.Groups[1].Value : null;
+            if (url == null)
+            {
+                var plain = System.Text.RegularExpressions.Regex.Match(
+                    text, "(?:https?:\\/\\/|www\\.)[^\\s\\]]*roblox\\.com[^\\s\\)]*",
+                    System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                url = plain.Success ? plain.Value : null;
+            }
+            Show();
+            Activate();
+            if (url == null)
+            {
+                SetStatus("No Roblox link found in the copied text.", true);
+                return;
+            }
+            _lastAutoJoined = url;
+            _linkBox.Text = url;
+            TryJoin(url, closeAfter: false);
         }
 
         private string HotkeyDescription()
@@ -679,6 +767,11 @@ namespace ArcticJoiner
             if (key != Keys.None)
             {
                 RegisterHotKey(Handle, HOTKEY_ID, (uint)_settings.HotkeyMods, (uint)key);
+            }
+            Keys key2 = ParseKey(_settings.DeleteKey);
+            if (key2 != Keys.None)
+            {
+                RegisterHotKey(Handle, HOTKEY_ID2, (uint)_settings.DeleteMods, (uint)key2);
             }
             if (_hotkeyLabel != null)
             {
@@ -743,12 +836,21 @@ namespace ArcticJoiner
                     if (e.Control) mods |= 2;
                     if (e.Shift) mods |= 4;
                     if (e.Alt) mods |= 1;
-                    _settings.HotkeyMods = mods;
-                    _settings.HotkeyKey = e.KeyCode.ToString();
+                    if (_captureTarget == 2)
+                    {
+                        _settings.DeleteMods = mods;
+                        _settings.DeleteKey = e.KeyCode.ToString();
+                    }
+                    else
+                    {
+                        _settings.HotkeyMods = mods;
+                        _settings.HotkeyKey = e.KeyCode.ToString();
+                    }
                     _settings.Save(); // saved immediately, no extra step
                     _captureHotkey = false;
                     ApplyHotkey();
-                    SetStatus("Hotkey set to " + HotkeyDescription() + " and saved.", false);
+                    SetStatus((_captureTarget == 2 ? "Extract keybind" : "Hotkey") +
+                        " set to " + (_captureTarget == 2 ? DeleteDescription() : HotkeyDescription()) + " and saved.", false);
                 }
                 return;
             }
@@ -945,7 +1047,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "1.7.3";
+        public const string Version = "1.8.1";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.
