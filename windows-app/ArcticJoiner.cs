@@ -553,7 +553,7 @@ namespace ArcticJoiner
             {
                 string exe = Application.ExecutablePath;
                 using (Microsoft.Win32.RegistryKey root =
-                    Microsoft.Win32.Registry.CurrentUser.CreateSubKey("Software\Classes\arcticjoiner"))
+                    Microsoft.Win32.Registry.CurrentUser.CreateSubKey("Software\\Classes\\arcticjoiner"))
                 {
                     root.SetValue("", "URL:Arctic Joiner Protocol");
                     root.SetValue("URL Protocol", "");
@@ -561,7 +561,7 @@ namespace ArcticJoiner
                     {
                         icon.SetValue("", "\"" + exe + "\",0");
                     }
-                    using (Microsoft.Win32.RegistryKey command = root.CreateSubKey("shell\open\command"))
+                    using (Microsoft.Win32.RegistryKey command = root.CreateSubKey("shell\\open\\command"))
                     {
                         command.SetValue("", "\"" + exe + "\" "%1\"");
                     }
@@ -1389,7 +1389,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "2.3.0";
+        public const string Version = "2.3.1";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.
