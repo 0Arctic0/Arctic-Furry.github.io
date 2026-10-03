@@ -199,7 +199,7 @@ namespace ArcticJoiner
 
             _status = new Label
             {
-                Text = "Ready. Paste a link to join instantly.",
+                Text = "Ready (v" + Updater.Version + "). Paste a link to join instantly.",
                 AutoSize = false,
                 Size = new Size(588, 20),
                 Location = new Point(16, 74),
@@ -903,7 +903,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "1.5.4";
+        public const string Version = "1.5.5";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.
