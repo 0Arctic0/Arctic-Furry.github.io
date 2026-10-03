@@ -118,7 +118,6 @@ namespace ArcticJoiner
     internal sealed class JoinerForm : Form
     {
         private readonly Settings _settings;
-        private readonly TextBox _linkBox;
         private readonly Button _joinButton;
         private readonly Label _status;
         private readonly CheckBox _autoJoinCheck;
@@ -147,7 +146,7 @@ namespace ArcticJoiner
             FormBorderStyle = FormBorderStyle.FixedSingle;
             MaximizeBox = false;
             StartPosition = FormStartPosition.CenterScreen;
-            ClientSize = new Size(620, 195);
+            ClientSize = new Size(620, 200);
 
             // Use the exe's own compiled-in icon for the window/taskbar.
             try
@@ -251,7 +250,7 @@ namespace ArcticJoiner
                 Text = "",
                 Visible = false,
                 Enabled = false,
-                Location = new Point(16, 128),
+                Location = new Point(16, 172),
                 Size = new Size(400, 24),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left
             };
@@ -865,7 +864,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "1.5.0";
+        public const string Version = "1.5.1";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.
