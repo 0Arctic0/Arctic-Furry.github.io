@@ -27,7 +27,13 @@
       var i = 0;
       function attempt() {
         if (i >= urls.length) return Promise.reject(new Error('unavailable'));
-        return fetch(urls[i]).then(function (r) { return r.json(); }).catch(function () { i++; return attempt(); });
+        return fetch(urls[i]).then(function (r) {
+          // A mirror can answer with a non-2xx that still carries a JSON body
+          // (e.g. roproxy 429 rate-limit). Treat that as a failure so the
+          // next mirror is tried instead of returning the error object.
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          return r.json();
+        }).catch(function () { i++; return attempt(); });
       }
       return attempt();
     }
@@ -400,7 +406,7 @@
           if (!game) return;
           if (placeLabel) placeLabel.textContent = game.name || 'Place ID';
           if (description) {
-            description.textContent = 'Joining ' + (game.Name || 'this place') +
+            description.textContent = 'Joining ' + (game.name || 'this place') +
               '. Tap the button below to open Roblox for this place' +
               (launchData || instanceId ? ' with its exact details' : '') +
               '. If Roblox does not launch, use the fallback web button.';
