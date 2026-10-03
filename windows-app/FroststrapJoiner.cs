@@ -1,0 +1,484 @@
+// FroststrapJoiner - instant Roblox joiner for Froststrap users
+// Single-file C# WinForms app. No NuGet packages, no dependencies.
+// Build: see build.ps1 (uses the csc.exe that ships with Windows .NET Framework).
+//
+// What it does:
+//   - Paste any Roblox join link (or pass it as a command-line argument)
+//   - It parses the link and instantly launches Froststrap with the right
+//     roblox:// deep link. No browser, no extra steps.
+//
+// Supported link formats:
+//   - https://www.roblox.com/games/start?placeId=...&launchData=...
+//   - https://www.roblox.com/games/12345/Game-Name?gameInstanceId=...
+//   - https://www.roblox.com/games/12345/Game-Name?privateServerLinkCode=...
+//   - https://www.roblox.com/share?code=...&type=Server
+//   - raw roblox:// links (passed straight through)
+//   - raw IDs (placeId digits, or a bare share code)
+
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Drawing;
+using System.IO;
+using System.Text;
+using System.Windows.Forms;
+
+namespace FroststrapJoiner
+{
+    internal static class Program
+    {
+        [STAThread]
+        private static void Main(string[] args)
+        {
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+
+            var settings = Settings.Load();
+            var form = new JoinerForm(settings);
+
+            // If a link was passed on the command line, join instantly.
+            if (args != null && args.Length > 0)
+            {
+                string joined = string.Join(" ", args);
+                if (!string.IsNullOrWhiteSpace(joined))
+                {
+                    form.Shown += (s, e) => form.TryJoin(joined, closeAfter: true);
+                }
+            }
+
+            Application.Run(form);
+        }
+    }
+
+    internal sealed class Settings
+    {
+        public string FroststrapPath = "";
+        public bool AutoJoinOnPaste = true;
+        public bool CloseAfterJoin = false;
+
+        private static string SettingsFile
+        {
+            get
+            {
+                string dir = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                    "FroststrapJoiner");
+                return Path.Combine(dir, "settings.txt");
+            }
+        }
+
+        public static Settings Load()
+        {
+            var s = new Settings();
+            try
+            {
+                if (File.Exists(SettingsFile))
+                {
+                    foreach (string line in File.ReadAllLines(SettingsFile))
+                    {
+                        int eq = line.IndexOf('=');
+                        if (eq <= 0) continue;
+                        string key = line.Substring(0, eq).Trim();
+                        string val = line.Substring(eq + 1).Trim();
+                        if (key == "froststrapPath") s.FroststrapPath = val;
+                        else if (key == "autoJoinOnPaste") s.AutoJoinOnPaste = val == "1";
+                        else if (key == "closeAfterJoin") s.CloseAfterJoin = val == "1";
+                    }
+                }
+            }
+            catch { }
+            return s;
+        }
+
+        public void Save()
+        {
+            try
+            {
+                string file = SettingsFile;
+                Directory.CreateDirectory(Path.GetDirectoryName(file));
+                File.WriteAllText(file, new StringBuilder()
+                    .AppendLine("froststrapPath=" + FroststrapPath)
+                    .AppendLine("autoJoinOnPaste=" + (AutoJoinOnPaste ? "1" : "0"))
+                    .AppendLine("closeAfterJoin=" + (CloseAfterJoin ? "1" : "0"))
+                    .ToString());
+            }
+            catch { }
+        }
+    }
+}
+
+namespace FroststrapJoiner
+{
+    internal sealed class JoinerForm : Form
+    {
+        private readonly Settings _settings;
+        private readonly TextBox _linkBox;
+        private readonly Button _joinButton;
+        private readonly Label _status;
+        private readonly CheckBox _autoJoinCheck;
+        private readonly CheckBox _closeAfterCheck;
+        private readonly TextBox _froststrapPathBox;
+        private readonly Button _browseButton;
+        private readonly Button _openSettingsButton;
+        private readonly Panel _settingsPanel;
+        private string _lastAutoJoined = "";
+
+        public JoinerForm(Settings settings)
+        {
+            _settings = settings;
+
+            Text = "Froststrap Joiner";
+            FormBorderStyle = FormBorderStyle.FixedSingle;
+            MaximizeBox = false;
+            StartPosition = FormStartPosition.CenterScreen;
+            ClientSize = new Size(560, 190);
+
+            var pasteLabel = new Label
+            {
+                Text = "Paste a Roblox link and press Enter:",
+                AutoSize = true,
+                Location = new Point(12, 12)
+            };
+
+            _linkBox = new TextBox
+            {
+                Location = new Point(12, 32),
+                Width = 440,
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
+            };
+            _linkBox.KeyDown += LinkBoxKeyDown;
+            _linkBox.TextChanged += (s, e) =>
+            {
+                string candidate = _linkBox.Text.Trim();
+                if (!_settings.AutoJoinOnPaste) return;
+                if (candidate.Equals(_lastAutoJoined, StringComparison.OrdinalIgnoreCase)) return;
+                // Join as soon as a full link shows up in the box.
+                if (candidate.StartsWith("http", StringComparison.OrdinalIgnoreCase) ||
+                    candidate.StartsWith("roblox://", StringComparison.OrdinalIgnoreCase))
+                {
+                    _lastAutoJoined = candidate;
+                    TryJoin(candidate, closeAfter: false);
+                }
+            };
+
+            _joinButton = new Button
+            {
+                Text = "Join",
+                Location = new Point(460, 30),
+                Width = 88,
+                Anchor = AnchorStyles.Top | AnchorStyles.Right
+            };
+            _joinButton.Click += (s, e) => TryJoin(_linkBox.Text, closeAfter: false);
+
+            _status = new Label
+            {
+                Text = "Ready. Paste a link to join instantly.",
+                AutoSize = false,
+                Size = new Size(536, 18),
+                Location = new Point(12, 60),
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
+            };
+
+            _autoJoinCheck = new CheckBox
+            {
+                Text = "Join instantly on paste",
+                Checked = _settings.AutoJoinOnPaste,
+                AutoSize = true,
+                Location = new Point(12, 82)
+            };
+            _autoJoinCheck.CheckedChanged += (s, e) =>
+            {
+                _settings.AutoJoinOnPaste = _autoJoinCheck.Checked;
+                _settings.Save();
+            };
+
+            _closeAfterCheck = new CheckBox
+            {
+                Text = "Close after joining",
+                Checked = _settings.CloseAfterJoin,
+                AutoSize = true,
+                Location = new Point(180, 82)
+            };
+            _closeAfterCheck.CheckedChanged += (s, e) =>
+            {
+                _settings.CloseAfterJoin = _closeAfterCheck.Checked;
+                _settings.Save();
+            };
+
+            _openSettingsButton = new Button
+            {
+                Text = "Froststrap settings",
+                Location = new Point(12, 108),
+                Width = 140
+            };
+            _openSettingsButton.Click += (s, e) =>
+            {
+                _settingsPanel.Visible = !_settingsPanel.Visible;
+                ClientSize = new Size(ClientSize.Width, _settingsPanel.Visible ? 300 : 190);
+            };
+
+            _settingsPanel = new Panel
+            {
+                Location = new Point(12, 140),
+                Size = new Size(536, 150),
+                Visible = false
+            };
+
+            var pathLabel = new Label
+            {
+                Text = "Froststrap.exe location (optional - leave empty to use the roblox:// protocol handler):",
+                AutoSize = false,
+                Size = new Size(536, 32)
+            };
+            _froststrapPathBox = new TextBox
+            {
+                Text = _settings.FroststrapPath,
+                Location = new Point(0, 36),
+                Width = 448
+            };
+            _froststrapPathBox.TextChanged += (s, e) =>
+            {
+                _settings.FroststrapPath = _froststrapPathBox.Text.Trim();
+                _settings.Save();
+            };
+            _browseButton = new Button
+            {
+                Text = "Browse...",
+                Location = new Point(456, 34),
+                Width = 80
+            };
+            _browseButton.Click += (s, e) =>
+            {
+                using (var dlg = new OpenFileDialog
+                {
+                    Filter = "Froststrap (Froststrap.exe)|Froststrap.exe|All executables (*.exe)|*.exe",
+                    Title = "Select Froststrap.exe"
+                })
+                {
+                    if (dlg.ShowDialog(this) == DialogResult.OK)
+                    {
+                        _froststrapPathBox.Text = dlg.FileName;
+                    }
+                }
+            };
+
+            var hint = new Label
+            {
+                Text = "Tip: if the box above is empty, the joiner opens the roblox:// link directly, so whatever app is registered for it (Froststrap, if you set it as default) launches.",
+                AutoSize = false,
+                Size = new Size(536, 70),
+                Location = new Point(0, 70),
+                ForeColor = SystemColors.GrayText
+            };
+
+            _settingsPanel.Controls.Add(pathLabel);
+            _settingsPanel.Controls.Add(_froststrapPathBox);
+            _settingsPanel.Controls.Add(_browseButton);
+            _settingsPanel.Controls.Add(hint);
+
+            Controls.Add(pasteLabel);
+            Controls.Add(_linkBox);
+            Controls.Add(_joinButton);
+            Controls.Add(_status);
+            Controls.Add(_autoJoinCheck);
+            Controls.Add(_closeAfterCheck);
+            Controls.Add(_openSettingsButton);
+            Controls.Add(_settingsPanel);
+
+            AcceptButton = _joinButton;
+        }
+
+        private void LinkBoxKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Enter)
+            {
+                e.SuppressKeyPress = true;
+                TryJoin(_linkBox.Text, closeAfter: false);
+            }
+        }
+
+        public void TryJoin(string raw, bool closeAfter)
+        {
+            string deepLink = LinkParser.Parse(raw);
+            if (deepLink == null)
+            {
+                SetStatus("Could not read a place ID, server ID, launch data, or private code from that input.", true);
+                return;
+            }
+
+            try
+            {
+                string exe = _settings.FroststrapPath;
+                if (!string.IsNullOrWhiteSpace(exe) && File.Exists(exe))
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = exe,
+                        Arguments = "\"" + deepLink + "\"",
+                        UseShellExecute = false
+                    });
+                    SetStatus("Launched Froststrap with: " + deepLink, false);
+                }
+                else
+                {
+                    Process.Start(new ProcessStartInfo(deepLink) { UseShellExecute = true });
+                    SetStatus("Opened join link (roblox:// handler): " + deepLink, false);
+                }
+
+                if (closeAfter || _settings.CloseAfterJoin)
+                {
+                    Close();
+                }
+            }
+            catch (Exception ex)
+            {
+                SetStatus("Launch failed: " + ex.Message + " (Is Froststrap installed?)", true);
+            }
+        }
+
+        private void SetStatus(string message, bool error)
+        {
+            _status.Text = message;
+            _status.ForeColor = error ? Color.Firebrick : SystemColors.ControlText;
+        }
+    }
+}
+
+namespace FroststrapJoiner
+{
+    internal static class LinkParser
+    {
+        // Returns a roblox:// deep link for any supported input, or null if nothing usable.
+        public static string Parse(string raw)
+        {
+            string text = (raw ?? "").Trim();
+            if (text.Length == 0) return null;
+
+            // Already a deep link - pass straight through.
+            if (text.StartsWith("roblox://", StringComparison.OrdinalIgnoreCase)) return text;
+
+            string placeId = null, instanceId = null, launchData = null, privateCode = null;
+
+            if (text.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+                text.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ||
+                text.StartsWith("www.", StringComparison.OrdinalIgnoreCase))
+            {
+                string url = text.StartsWith("www.", StringComparison.OrdinalIgnoreCase) ? "https://" + text : text;
+                try
+                {
+                    var uri = new Uri(url);
+                    var query = ParseQuery(uri.Query);
+                    string path = uri.AbsolutePath;
+
+                    // /share?code=...&type=Server
+                    if (path.IndexOf("/share", StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        privateCode = Get(query, "code");
+                    }
+
+                    if (privateCode == null)
+                    {
+                        placeId = Get(query, "placeId");
+                        instanceId = FirstNonEmpty(Get(query, "gameInstanceId"), Get(query, "jobId"));
+                        launchData = Get(query, "launchData");
+                        privateCode = FirstNonEmpty(
+                            Get(query, "privateServerLinkCode"),
+                            Get(query, "privateServerCode"));
+
+                        // /games/12345/Game-Name (ID in the path, no query param)
+                        if (placeId == null && path.IndexOf("/games/", StringComparison.OrdinalIgnoreCase) >= 0)
+                        {
+                            string[] parts = path.Split('/');
+                            for (int i = 0; i < parts.Length - 1; i++)
+                            {
+                                if (parts[i].Equals("games", StringComparison.OrdinalIgnoreCase) &&
+                                    long.TryParse(parts[i + 1], out long id))
+                                {
+                                    placeId = parts[i + 1];
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (UriFormatException)
+                {
+                    return null;
+                }
+            }
+            else
+            {
+                // Bare pasted value: accept a bare placeId (digits) or a bare share code.
+                if (IsDigits(text)) placeId = text;
+                else if (LooksLikeShareCode(text)) privateCode = NormalizeCode(text);
+                else return null;
+            }
+
+            if (privateCode != null)
+            {
+                return "roblox://navigation/share_links?code=" + Uri.EscapeDataString(privateCode) + "&type=Server";
+            }
+            if (placeId != null)
+            {
+                var sb = new StringBuilder("roblox://placeId=").Append(placeId);
+                if (instanceId != null) sb.Append("&gameInstanceId=").Append(Uri.EscapeDataString(instanceId));
+                if (launchData != null) sb.Append("&launchData=").Append(Uri.EscapeDataString(launchData));
+                return sb.ToString();
+            }
+            return null; // a launch key without a place ID cannot join anything
+        }
+
+        private static Dictionary<string, string> ParseQuery(string query)
+        {
+            var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (string.IsNullOrEmpty(query)) return result;
+            string q = query.StartsWith("?") ? query.Substring(1) : query;
+            foreach (string pair in q.Split('&'))
+            {
+                if (pair.Length == 0) continue;
+                int eq = pair.IndexOf('=');
+                string key = eq < 0 ? pair : pair.Substring(0, eq);
+                string val = eq < 0 ? "" : pair.Substring(eq + 1);
+                key = Uri.UnescapeDataString(key).Replace('+', ' ').Trim();
+                val = Uri.UnescapeDataString(val).Replace('+', ' ').Trim();
+                if (key.Length > 0 && !result.ContainsKey(key)) result[key] = val;
+            }
+            return result;
+        }
+
+        private static string Get(Dictionary<string, string> query, string key)
+        {
+            string v;
+            return query.TryGetValue(key, out v) && v.Length > 0 ? v : null;
+        }
+
+        private static string FirstNonEmpty(params string[] values)
+        {
+            foreach (string v in values) if (!string.IsNullOrEmpty(v)) return v;
+            return null;
+        }
+
+        private static bool IsDigits(string text)
+        {
+            foreach (char c in text) if (c < '0' || c > '9') return false;
+            return text.Length > 0;
+        }
+
+        private static bool LooksLikeShareCode(string text)
+        {
+            // Share/private codes are long alphanumeric blobs with no spaces or slashes.
+            foreach (char c in text)
+            {
+                if (!char.IsLetterOrDigit(c)) return false;
+            }
+            return text.Length >= 16;
+        }
+
+        private static string NormalizeCode(string text)
+        {
+            var sb = new StringBuilder();
+            foreach (char c in text) if (char.IsLetterOrDigit(c)) sb.Append(c);
+            return sb.ToString();
+        }
+    }
+}

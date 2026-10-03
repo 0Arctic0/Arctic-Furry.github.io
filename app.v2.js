@@ -23,6 +23,10 @@
     return String(value || '').trim();
   }
 
+  function normalizeLaunchData(value) {
+    return String(value || '').trim();
+  }
+
   function normalizePrivateCode(value) {
     const text = String(value || '').trim();
     const match = text.match(/[?&]code=([A-Za-z0-9]+)/i);
@@ -46,6 +50,7 @@
       return {
         placeId: normalizePlaceId(params.get('placeId')),
         instanceId: normalizeInstanceId(params.get('gameInstanceId') || params.get('jobId')),
+        launchData: normalizeLaunchData(params.get('launchData')),
         privateCode: normalizePrivateCode(params.get('privateCode') || params.get('linkCode') || params.get('privateServerCode') || params.get('privateServerLink') || params.get('code') || params.get('privateServerLinkCode'))
       };
     } catch (_) {
@@ -59,6 +64,28 @@
 
   function buildPlaceLink(placeId) {
     return 'roblox://placeId=' + encodeURIComponent(placeId);
+  }
+
+  function buildLaunchDataLink(placeId, launchData, instanceId) {
+    let link = 'roblox://placeId=' + encodeURIComponent(placeId);
+    if (instanceId) {
+      link += '&gameInstanceId=' + encodeURIComponent(instanceId);
+    }
+    if (launchData) {
+      link += '&launchData=' + encodeURIComponent(launchData);
+    }
+    return link;
+  }
+
+  function buildLaunchDataWebLink(placeId, launchData, instanceId) {
+    let link = 'https://www.roblox.com/games/start?placeId=' + encodeURIComponent(placeId);
+    if (instanceId) {
+      link += '&gameInstanceId=' + encodeURIComponent(instanceId);
+    }
+    if (launchData) {
+      link += '&launchData=' + encodeURIComponent(launchData);
+    }
+    return link;
   }
 
   function buildPrivateLink(placeId, privateCode) {
@@ -293,6 +320,7 @@
     const placeId = normalizePlaceId(params.get('placeId'));
     const instanceId = normalizeInstanceId(params.get('gameInstanceId') || params.get('jobId'));
     const privateCode = normalizePrivateCode(params.get('privateCode') || params.get('linkCode') || params.get('privateServerCode') || params.get('privateServerLink') || params.get('privateServerLinkCode'));
+    const launchData = normalizeLaunchData(params.get('launchData'));
     const mode = privateCode ? 'private' : 'public';
     const jobValue = byId('job-id');
     const placeBlock = byId('place-block');
@@ -304,14 +332,18 @@
     const description = byId('invite-description');
     const deepLink = mode === 'private'
       ? buildPrivateLink(placeId, privateCode)
-      : instanceId
-        ? buildDeepLink(placeId, instanceId)
-        : buildPlaceLink(placeId);
+      : launchData
+        ? buildLaunchDataLink(placeId, launchData, instanceId)
+        : instanceId
+          ? buildDeepLink(placeId, instanceId)
+          : buildPlaceLink(placeId);
     const webLink = mode === 'private'
       ? buildPrivateWebLink(privateCode)
-      : instanceId
-        ? buildWebLink(placeId, instanceId)
-        : buildPlaceWebLink(placeId);
+      : launchData
+        ? buildLaunchDataWebLink(placeId, launchData, instanceId)
+        : instanceId
+          ? buildWebLink(placeId, instanceId)
+          : buildPlaceWebLink(placeId);
 
     if (!placeId && mode !== 'private') {
       window.location.replace('../menu/' + window.location.search + window.location.hash);
@@ -336,21 +368,25 @@
     if (description) {
       description.textContent = mode === 'private'
         ? 'Tap the button below to open Roblox for this private server. If the app does not launch, use the fallback web button.'
-        : instanceId
-          ? 'Tap the button below to open the Roblox app for this exact server on desktop or mobile. If Roblox does not launch, use the fallback web button.'
-          : 'Tap the button below to open Roblox for this place. If Roblox does not launch, use the fallback web button.';
+        : launchData
+          ? 'Tap the button below to open Roblox for this place with its launch data. If the app does not launch, use the fallback web button.'
+          : instanceId
+            ? 'Tap the button below to open the Roblox app for this exact server on desktop or mobile. If Roblox does not launch, use the fallback web button.'
+            : 'Tap the button below to open Roblox for this place. If Roblox does not launch, use the fallback web button.';
     }
     if (jobLabel) {
       jobLabel.textContent = mode === 'private'
         ? 'Private Server Code'
-        : instanceId
-          ? 'Server Job ID'
-          : 'Join Type';
+        : launchData
+          ? 'Launch Data'
+          : instanceId
+            ? 'Server Job ID'
+            : 'Join Type';
     }
     if (jobValue) {
       jobValue.textContent = mode === 'private'
         ? privateCode
-        : instanceId || 'Public place join';
+        : launchData || instanceId || 'Public place join';
     }
 
     function openRoblox() {
@@ -388,6 +424,7 @@
     const placeInput = byId('placeId');
     const instanceInput = byId('gameInstanceId');
     const inviteLinkInput = byId('inviteLink');
+    const launchDataInput = byId('launchData');
     const privateInput = byId('privateCode');
     const privateGameLinkInput = byId('privateGameLink');
     const publicFields = byId('public-fields');
@@ -408,6 +445,7 @@
       const mode = getMode();
       const placeId = normalizePlaceId(placeInput && placeInput.value);
       const instanceId = normalizeInstanceId(instanceInput && instanceInput.value);
+      const launchData = normalizeLaunchData(launchDataInput && launchDataInput.value);
       const privateCode = normalizePrivateCode(
         (privateInput && privateInput.value) || (privateGameLinkInput && privateGameLinkInput.value)
       );
@@ -421,6 +459,9 @@
       url.searchParams.set('placeId', placeId);
       if (instanceId) {
         url.searchParams.set('gameInstanceId', instanceId);
+      }
+      if (launchData) {
+        url.searchParams.set('launchData', launchData);
       }
       return url.toString();
     }
@@ -451,6 +492,7 @@
           lastInviteLinkApplied = '';
           if (placeInput) placeInput.value = '';
           if (instanceInput) instanceInput.value = '';
+          if (launchDataInput) launchDataInput.value = '';
         }
         return;
       }
@@ -467,11 +509,12 @@
         if (instanceInput) instanceInput.value = '';
         return;
       }
-      if (parsed.placeId || parsed.instanceId) {
+      if (parsed.placeId || parsed.instanceId || parsed.launchData) {
         const publicRadio = document.querySelector('input[name="joinType"][value="public"]');
         if (publicRadio) publicRadio.checked = true;
         if (placeInput && parsed.placeId) placeInput.value = parsed.placeId;
         if (instanceInput && parsed.instanceId) instanceInput.value = parsed.instanceId;
+        if (launchDataInput && parsed.launchData) launchDataInput.value = parsed.launchData;
       }
     }
 
@@ -493,6 +536,10 @@
       }
       const placeId = normalizePlaceId(placeInput && placeInput.value);
       const instanceId = normalizeInstanceId(instanceInput && instanceInput.value);
+      const launchData = normalizeLaunchData(launchDataInput && launchDataInput.value);
+      if (launchData) {
+        return buildLaunchDataLink(placeId, launchData, instanceId);
+      }
       return instanceId ? buildDeepLink(placeId, instanceId) : buildPlaceLink(placeId);
     }
 
@@ -529,6 +576,7 @@
     });
     placeInput && placeInput.addEventListener('input', refresh);
     instanceInput && instanceInput.addEventListener('input', refresh);
+    launchDataInput && launchDataInput.addEventListener('input', refresh);
     privateInput && privateInput.addEventListener('input', refresh);
     privateGameLinkInput && privateGameLinkInput.addEventListener('input', refresh);
 

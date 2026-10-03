@@ -1,5 +1,15 @@
 [
   {
+    "date": "2026-07-01",
+    "title": "games/start links and Windows instant-join app",
+    "items": [
+      "Added support for Roblox games/start links with placeId and launchData (https://www.roblox.com/games/start?placeId=...&launchData=...).",
+      "Pasting a games/start link in the menu now fills the place ID and launch data automatically.",
+      "Invite pages now build roblox:// deep links with launch data for instant joins.",
+      "Added a Windows desktop app (windows-app) that pastes a link and instantly launches Froststrap with it, no browser needed."
+    ]
+  },
+  {
     "date": "2026-06-30",
     "title": "Community system and Discord verification",
     "items": [

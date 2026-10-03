@@ -7,6 +7,8 @@ Static GitHub Pages join helper for Roblox public servers and private server lin
 - Public server join links using:
   - `placeId`
   - optional `gameInstanceId`
+  - optional `launchData` (from `games/start` links)
+- `games/start` deep-launch links like `https://www.roblox.com/games/start?placeId=...&launchData=...`
 - Private server join links using:
   - Roblox share links like `https://www.roblox.com/share?code=...&type=Server`
   - Roblox game URLs with `privateServerLinkCode=...`
@@ -14,6 +16,7 @@ Static GitHub Pages join helper for Roblox public servers and private server lin
 - Simple menu page for generating join links
 - Dedicated private servers page
 - Changelogs page
+- Windows desktop app (`windows-app/`) that pastes a link and instantly launches Froststrap with it
 
 ## Routes
 
@@ -26,6 +29,7 @@ Examples:
 
 - Public place only:
   - `/invite?placeId=606849621`
+- `/invite?placeId=606849621&launchData=9db6585a-9598-4de7-981d-a82cab6bdec2`
 - Public exact server:
   - `/invite?placeId=606849621&gameInstanceId=b7b55207-ab2f-4b62-acd7-7f5962b13a26`
 - Private server:
