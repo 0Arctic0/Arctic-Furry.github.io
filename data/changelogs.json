@@ -3,6 +3,8 @@
     "date": "2026-07-01",
     "title": "games/start links and Windows instant-join app",
     "items": [
+      "Redesigned the menu around a single paste box: paste any link and the best join option is chosen automatically, with an Advanced panel for manual entry.",
+      "Fixed paste detection: normal game URLs (place ID in the path) and links pasted without https:// now work.",
       "Added support for Roblox games/start links with placeId and launchData (https://www.roblox.com/games/start?placeId=...&launchData=...).",
       "Pasting a games/start link in the menu now fills the place ID and launch data automatically.",
       "Invite pages now build roblox:// deep links with launch data for instant joins.",

@@ -42,13 +42,23 @@
   }
 
   function parseInviteLikeInput(value) {
-    const text = String(value || '').trim();
+    let text = String(value || '').trim();
     if (!text) return null;
+    // Tolerate links pasted without the scheme.
+    if (!/^https?:\/\//i.test(text) && /^([a-z0-9-]+\.)*roblox\.com\//i.test(text)) {
+      text = 'https://' + text;
+    }
     try {
       const url = new URL(text);
       const params = url.searchParams;
+      let placeId = normalizePlaceId(params.get('placeId'));
+      // Normal game URLs carry the place ID in the path: /games/<id>/Game-Name
+      if (!placeId) {
+        const pathMatch = url.pathname.match(/\/games\/(\d+)/i);
+        if (pathMatch) placeId = pathMatch[1];
+      }
       return {
-        placeId: normalizePlaceId(params.get('placeId')),
+        placeId: placeId,
         instanceId: normalizeInstanceId(params.get('gameInstanceId') || params.get('jobId')),
         launchData: normalizeLaunchData(params.get('launchData')),
         privateCode: normalizePrivateCode(params.get('privateCode') || params.get('linkCode') || params.get('privateServerCode') || params.get('privateServerLink') || params.get('code') || params.get('privateServerLinkCode'))
@@ -433,8 +443,15 @@
     const viewGameButton = byId('view-game');
     const copyLinkButton = byId('copy-link');
     const output = byId('generated-link');
+    const advancedToggle = byId('advanced-toggle');
+    const advancedPanel = byId('advanced-panel');
     let lastInviteLinkApplied = '';
     let lastPublicPlaceId = '';
+
+    advancedToggle && advancedToggle.addEventListener('click', function () {
+      const open = advancedPanel.classList.toggle('hidden');
+      advancedToggle.textContent = open ? 'Advanced' : 'Hide Advanced';
+    });
 
     function getMode() {
       const checked = document.querySelector('input[name="joinType"]:checked');
@@ -505,6 +522,7 @@
         if (privateRadio) privateRadio.checked = true;
         if (privateInput) privateInput.value = parsed.privateCode;
         if (privateGameLinkInput) privateGameLinkInput.value = raw;
+        if (parsed.placeId) lastPublicPlaceId = parsed.placeId;
         if (placeInput) placeInput.value = '';
         if (instanceInput) instanceInput.value = '';
         return;
@@ -560,10 +578,8 @@
       if (copyLinkButton) copyLinkButton.disabled = !url;
       setStatus(
         url
-          ? 'Join link ready.'
-          : mode === 'private'
-            ? 'Enter a private server code or share link. Place ID is optional.'
-            : 'Enter a place ID. Game instance ID is optional for public joins.'
+          ? (getMode() === 'private' ? 'Private server join link ready.' : 'Public join link ready.')
+          : 'Paste any Roblox link above — public or private, it is detected automatically. Or open Advanced to enter details yourself.'
       );
     }
 

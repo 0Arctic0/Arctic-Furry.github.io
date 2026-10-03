@@ -10,50 +10,11 @@
   <main class="page">
     <section class="card">
       <h1>Joiner Menu</h1>
-      <p>Choose whether you want a <strong>public</strong> or <strong>private</strong> join link, then fill in the needed Roblox info below.</p>
+      <p>Paste <strong>any</strong> Roblox link below — public, private, or <code>games/start</code> with launch data. It is detected automatically and the best join option is chosen for you.</p>
 
-      <div class="toggle-row" role="radiogroup" aria-label="Join type">
-        <label class="toggle-option">
-          <input type="radio" name="joinType" value="public" checked />
-          <span>Public Server</span>
-        </label>
-        <label class="toggle-option">
-          <input type="radio" name="joinType" value="private" />
-          <span>Private Server</span>
-        </label>
-      </div>
-
-      <div class="stack">
-        <div class="field" id="place-field">
-          <label for="placeId">Place ID</label>
-          <input id="placeId" inputmode="numeric" placeholder="606849621" />
-        </div>
-
-        <div id="public-fields">
-          <div class="field">
-            <label for="gameInstanceId">Game Instance ID <span class="small">(optional)</span></label>
-            <input id="gameInstanceId" placeholder="b7b55207-ab2f-4b62-acd7-7f5962b13a26" />
-          </div>
-          <div class="field">
-            <label for="launchData">Launch Data <span class="small">(optional, from games/start links)</span></label>
-            <input id="launchData" placeholder="9db6585a-9598-4de7-981d-a82cab6bdec2" />
-          </div>
-          <div class="field" id="invite-link-field">
-            <label for="inviteLink">Existing Invite Link <span class="small">(optional)</span></label>
-            <input id="inviteLink" placeholder="Paste a Froststrap-style or Roblox invite link here" />
-          </div>
-        </div>
-
-        <div id="private-fields" class="hidden">
-          <div class="field">
-            <label for="privateCode">Private Server Share Link or Code</label>
-            <input id="privateCode" placeholder="https://www.roblox.com/share?code=...&type=Server" />
-          </div>
-          <div class="field">
-            <label for="privateGameLink">Roblox Game Private Server Link <span class="small">(optional dedicated field)</span></label>
-            <input id="privateGameLink" placeholder="https://www.roblox.com/games/...?...privateServerLinkCode=..." />
-          </div>
-        </div>
+      <div class="field">
+        <label for="inviteLink">Paste Link <span class="small">(auto-detected)</span></label>
+        <input id="inviteLink" placeholder="https://www.roblox.com/games/start?placeId=...&launchData=... — or any Roblox game / share link" />
       </div>
 
       <div class="auto-join-panel">
@@ -72,6 +33,55 @@
         <button class="button secondary" id="copy-link">Copy Join Link</button>
       </div>
 
+      <div class="buttons" style="margin-top: 12px;">
+        <button class="button secondary" id="advanced-toggle">Advanced</button>
+      </div>
+
+      <div id="advanced-panel" class="hidden">
+        <div class="divider"></div>
+        <p class="small">Prefer to enter everything yourself? Pick a mode and fill in the fields below. Pasting a link above still fills these in for you.</p>
+
+        <div class="toggle-row" role="radiogroup" aria-label="Join type">
+          <label class="toggle-option">
+            <input type="radio" name="joinType" value="public" checked />
+            <span>Public Server</span>
+          </label>
+          <label class="toggle-option">
+            <input type="radio" name="joinType" value="private" />
+            <span>Private Server</span>
+          </label>
+        </div>
+
+        <div class="stack">
+          <div class="field" id="place-field">
+            <label for="placeId">Place ID</label>
+            <input id="placeId" inputmode="numeric" placeholder="606849621" />
+          </div>
+
+          <div id="public-fields">
+            <div class="field">
+              <label for="gameInstanceId">Game Instance ID <span class="small">(optional)</span></label>
+              <input id="gameInstanceId" placeholder="b7b55207-ab2f-4b62-acd7-7f5962b13a26" />
+            </div>
+            <div class="field">
+              <label for="launchData">Launch Data <span class="small">(optional, from games/start links)</span></label>
+              <input id="launchData" placeholder="9db6585a-9598-4de7-981d-a82cab6bdec2" />
+            </div>
+          </div>
+
+          <div id="private-fields" class="hidden">
+            <div class="field">
+              <label for="privateCode">Private Server Share Link or Code</label>
+              <input id="privateCode" placeholder="https://www.roblox.com/share?code=...&type=Server" />
+            </div>
+            <div class="field">
+              <label for="privateGameLink">Roblox Game Private Server Link <span class="small">(optional dedicated field)</span></label>
+              <input id="privateGameLink" placeholder="https://www.roblox.com/games/...?...privateServerLinkCode=..." />
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="divider"></div>
 
       <div class="field">
@@ -83,8 +93,8 @@
       </div>
 
       <p><strong>Generated join link</strong></p>
-      <div class="code-block" id="generated-link">Fill in the required fields to generate a join link.</div>
-      <p class="small status" id="status">Enter a place ID. Game instance ID is optional for public joins.</p>
+      <div class="code-block" id="generated-link">Paste a link above — everything else is automatic.</div>
+      <p class="small status" id="status">Paste any Roblox link above — public or private, it is detected automatically.</p>
     </section>
   </main>
   <script src="../app.v2.js"></script>
