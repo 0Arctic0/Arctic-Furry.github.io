@@ -1,8 +1,8 @@
 @echo off
-rem One-time install: downloads the latest FroststrapJoiner from GitHub and builds it.
-rem Download this file and double-click it (or run it from cmd).
+rem One-time install: downloads the latest FroststrapJoiner from GitHub, builds it,
+rem and puts FroststrapJoiner.exe directly into your Downloads folder.
 setlocal
-set "DIR=%LOCALAPPDATA%\FroststrapJoiner"
+set "DIR=%USERPROFILE%\Downloads"
 set "BASE=https://raw.githubusercontent.com/Arctic-Furry/Arctic-Furry.github.io/main/windows-app"
 
 echo === FroststrapJoiner install ===
