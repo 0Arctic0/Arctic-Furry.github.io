@@ -132,21 +132,22 @@ namespace FroststrapJoiner
             FormBorderStyle = FormBorderStyle.FixedSingle;
             MaximizeBox = false;
             StartPosition = FormStartPosition.CenterScreen;
-            ClientSize = new Size(560, 190);
+            ClientSize = new Size(620, 195);
 
             var pasteLabel = new Label
             {
                 Text = "Paste a Roblox link and press Enter:",
                 AutoSize = true,
-                Location = new Point(12, 12)
+                Location = new Point(16, 14)
             };
 
             _linkBox = new TextBox
             {
-                Location = new Point(12, 32),
-                Width = 440,
+                Location = new Point(16, 38),
+                Width = 588,
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
             };
+            _linkBox.Font = new Font(_linkBox.Font, FontStyle.Bold);
             _linkBox.KeyDown += LinkBoxKeyDown;
             _linkBox.TextChanged += (s, e) =>
             {
@@ -165,9 +166,9 @@ namespace FroststrapJoiner
             _joinButton = new Button
             {
                 Text = "Join",
-                Location = new Point(460, 30),
-                Width = 88,
-                Anchor = AnchorStyles.Top | AnchorStyles.Right
+                Location = new Point(16, 100),
+                Size = new Size(160, 34),
+                Anchor = AnchorStyles.Top | AnchorStyles.Left
             };
             _joinButton.Click += (s, e) => TryJoin(_linkBox.Text, closeAfter: false);
 
@@ -175,8 +176,8 @@ namespace FroststrapJoiner
             {
                 Text = "Ready. Paste a link to join instantly.",
                 AutoSize = false,
-                Size = new Size(536, 18),
-                Location = new Point(12, 60),
+                Size = new Size(588, 20),
+                Location = new Point(16, 74),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
             };
 
@@ -185,7 +186,7 @@ namespace FroststrapJoiner
                 Text = "Join instantly on paste",
                 Checked = _settings.AutoJoinOnPaste,
                 AutoSize = true,
-                Location = new Point(12, 82)
+                Location = new Point(16, 148)
             };
             _autoJoinCheck.CheckedChanged += (s, e) =>
             {
@@ -198,7 +199,7 @@ namespace FroststrapJoiner
                 Text = "Close after joining",
                 Checked = _settings.CloseAfterJoin,
                 AutoSize = true,
-                Location = new Point(180, 82)
+                Location = new Point(240, 148)
             };
             _closeAfterCheck.CheckedChanged += (s, e) =>
             {
@@ -209,13 +210,14 @@ namespace FroststrapJoiner
             _openSettingsButton = new Button
             {
                 Text = "Froststrap settings",
-                Location = new Point(12, 108),
-                Width = 140
+                Location = new Point(186, 103),
+                Size = new Size(150, 28),
+                Anchor = AnchorStyles.Top | AnchorStyles.Left
             };
             _openSettingsButton.Click += (s, e) =>
             {
                 _settingsPanel.Visible = !_settingsPanel.Visible;
-                ClientSize = new Size(ClientSize.Width, _settingsPanel.Visible ? 300 : 190);
+                ClientSize = new Size(ClientSize.Width, _settingsPanel.Visible ? 350 : 195);
             };
 
             _updateButton = new Button
@@ -223,15 +225,16 @@ namespace FroststrapJoiner
                 Text = "",
                 Visible = false,
                 Enabled = false,
-                Location = new Point(160, 108),
-                Width = 260
+                Location = new Point(16, 128),
+                Size = new Size(400, 24),
+                Anchor = AnchorStyles.Top | AnchorStyles.Left
             };
             _updateButton.Click += (s, e) => RunSelfUpdate();
 
             _settingsPanel = new Panel
             {
-                Location = new Point(12, 140),
-                Size = new Size(536, 150),
+                Location = new Point(16, 195),
+                Size = new Size(588, 145),
                 Visible = false
             };
 
@@ -239,13 +242,14 @@ namespace FroststrapJoiner
             {
                 Text = "Froststrap.exe location (optional - leave empty to use the roblox:// protocol handler):",
                 AutoSize = false,
-                Size = new Size(536, 32)
+                Size = new Size(588, 20)
             };
             _froststrapPathBox = new TextBox
             {
                 Text = _settings.FroststrapPath,
-                Location = new Point(0, 36),
-                Width = 448
+                Location = new Point(0, 26),
+                Width = 500,
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
             };
             _froststrapPathBox.TextChanged += (s, e) =>
             {
@@ -255,8 +259,9 @@ namespace FroststrapJoiner
             _browseButton = new Button
             {
                 Text = "Browse...",
-                Location = new Point(456, 34),
-                Width = 80
+                Location = new Point(508, 24),
+                Size = new Size(80, 26),
+                Anchor = AnchorStyles.Top | AnchorStyles.Right
             };
             _browseButton.Click += (s, e) =>
             {
@@ -277,8 +282,8 @@ namespace FroststrapJoiner
             {
                 Text = "Tip: if the box above is empty, the joiner opens the roblox:// link directly, so whatever app is registered for it (Froststrap, if you set it as default) launches.",
                 AutoSize = false,
-                Size = new Size(536, 70),
-                Location = new Point(0, 70),
+                Size = new Size(588, 60),
+                Location = new Point(0, 62),
                 ForeColor = SystemColors.GrayText
             };
 
@@ -593,7 +598,7 @@ namespace FroststrapJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "1.1.0";
+        public const string Version = "1.2.0";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.
