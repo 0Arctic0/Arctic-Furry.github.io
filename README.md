@@ -16,7 +16,7 @@ Static GitHub Pages join helper for Roblox public servers and private server lin
 - Simple menu page for generating join links
 - Dedicated private servers page
 - Changelogs page
-- Windows desktop app (`windows-app/`) that pastes a link and instantly launches Froststrap with it, plus pinned games for one-click joins without a link
+- Windows desktop app (`windows-app/`) that pastes a link and instantly launches Froststrap with it
 
 ## Routes
 

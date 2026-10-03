@@ -82,9 +82,9 @@ build through `ArcticJoiner.csproj`.
 - **Tray mode:** closing the window hides it to the system tray (it keeps the
   hotkey alive). Right-click the tray icon to open it or exit. Pin it to your
   taskbar for one-click access.
-- **Pinned games:** click **Pin current** to save the game in the box for
-  one-click joining later - no link needed. Pins show as buttons in the window
-  and under **Pinned games** in the tray menu. Right-click a pin to remove it.
+- **Updates:** when a newer version is found, an **install** button appears in
+  the main window and also inside the Froststrap settings panel, so you can
+  install from either place.
 - **Prev Server** shows what it will rejoin - the button shows the game name
   and hovering gives the game and server ID. The tray menu has **Clear history**
   to wipe the recent-join list.

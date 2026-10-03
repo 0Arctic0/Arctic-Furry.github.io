@@ -1,19 +1,18 @@
 [
   {
     "date": "2026-10-03",
-    "title": "Windows app v2.6.1: clearer Prev Server and tray history control",
+    "title": "Windows app v2.6.2: install button in settings, pins removed",
     "items": [
-      "Prev Server now shows what it will rejoin: the button carries the game name and a tooltip shows the game plus server ID, and the status line confirms the target.",
-      "The tray menu gained a Clear history action to wipe the recent-join list."
+      "The install button now also appears inside the Froststrap settings panel, so a pending update can be installed while that panel is open.",
+      "Removed the pinned games feature."
     ]
   },
   {
     "date": "2026-10-03",
-    "title": "Pinned games in the Windows app (v2.6.0)",
+    "title": "Windows app v2.6.1: clearer Prev Server and tray history control",
     "items": [
-      "Windows app v2.6.0: pin your favorite games for one-click joining without a link - paste a game link and click Pin current.",
-      "Pinned games appear as buttons in the app window and under Pinned games in the tray menu; right-click a pin to remove it.",
-      "Pins are saved next to the exe (pinned.txt) and remember the real game name."
+      "Prev Server now shows what it will rejoin: the button carries the game name and a tooltip shows the game plus server ID, and the status line confirms the target.",
+      "The tray menu gained a Clear history action to wipe the recent-join list."
     ]
   },
   {

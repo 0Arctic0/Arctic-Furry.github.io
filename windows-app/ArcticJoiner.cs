@@ -171,19 +171,6 @@ namespace ArcticJoiner
         }
     }
 
-    // A game the user pinned for one-click joining without needing a link.
-    internal sealed class PinnedGame
-    {
-        public string PlaceId;
-        public string Name;
-
-        public PinnedGame(string placeId, string name)
-        {
-            PlaceId = placeId;
-            Name = name ?? "";
-        }
-    }
-
 }
 
 namespace ArcticJoiner
@@ -203,14 +190,12 @@ namespace ArcticJoiner
         private readonly Button _prevButton;
         private readonly Panel _settingsPanel;
         private readonly Button _updateButton;
+        private readonly Button _updateButtonPanel;
         private readonly ComboBox _linkBox;
         private readonly Label _hotkeyLabel;
         private readonly Label _extractLabel;
         private readonly Button _changeHotkeyButton;
         private readonly List<string> _history = new List<string>();
-        private readonly List<PinnedGame> _pinned = new List<PinnedGame>();
-        private FlowLayoutPanel _pinnedPanel;
-        private Button _pinButton;
         private ToolTip _prevTip;
         private NotifyIcon _tray;
         private System.Windows.Forms.Timer _updateTimer;
@@ -232,7 +217,7 @@ namespace ArcticJoiner
             FormBorderStyle = FormBorderStyle.FixedSingle;
             MaximizeBox = false;
             StartPosition = FormStartPosition.CenterScreen;
-            ClientSize = new Size(620, 320);
+            ClientSize = new Size(620, 235);
 
             // Use the exe's own compiled-in icon for the window/taskbar.
             try
@@ -259,7 +244,6 @@ namespace ArcticJoiner
             };
             _linkBox.Font = new Font(_linkBox.Font, FontStyle.Bold);
             _history.AddRange(LoadHistory());
-            _pinned.AddRange(LoadPinned());
             RenderHistoryItems();
             // Resolve game names for existing history entries in the background.
             foreach (string entry in _history)
@@ -393,24 +377,15 @@ namespace ArcticJoiner
             _openSettingsButton.Click += (s, e) =>
             {
                 _settingsPanel.Visible = !_settingsPanel.Visible;
-                ClientSize = new Size(ClientSize.Width, _settingsPanel.Visible ? 554 : 320);
+                ClientSize = new Size(ClientSize.Width, _settingsPanel.Visible ? 455 : 235);
             };
-
-            _pinButton = new Button
-            {
-                Text = "Pin current",
-                Location = new Point(456, 103),
-                Size = new Size(148, 28),
-                Anchor = AnchorStyles.Top | AnchorStyles.Left
-            };
-            _pinButton.Click += (s, e) => PinCurrent();
 
             _updateButton = new Button
             {
                 Text = "",
                 Visible = false,
                 Enabled = false,
-                Location = new Point(16, 282),
+                Location = new Point(16, 200),
                 Size = new Size(400, 28),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left
             };
@@ -418,26 +393,9 @@ namespace ArcticJoiner
 
             _settingsPanel = new Panel
             {
-                Location = new Point(16, 282),
+                Location = new Point(16, 195),
                 Size = new Size(588, 262),
                 Visible = false
-            };
-
-            var pinnedLabel = new Label
-            {
-                Text = "Pinned games (click to join - right-click a pin to unpin):",
-                AutoSize = true,
-                Location = new Point(16, 196)
-            };
-
-            _pinnedPanel = new FlowLayoutPanel
-            {
-                Location = new Point(16, 214),
-                Size = new Size(588, 64),
-                FlowDirection = FlowDirection.LeftToRight,
-                WrapContents = true,
-                AutoScroll = true,
-                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
             };
 
             var pathLabel = new Label
@@ -512,6 +470,20 @@ namespace ArcticJoiner
                 SetStatus("Checking GitHub for updates...", false);
                 CheckForUpdatesAsync(true);
             };
+
+            // Mirror of the main install button, so an available update can be
+            // installed from inside this panel too (the main button sits behind
+            // the panel while it is open).
+            _updateButtonPanel = new Button
+            {
+                Text = "",
+                Visible = false,
+                Enabled = false,
+                Location = new Point(396, 56),
+                Size = new Size(104, 26),
+                Anchor = AnchorStyles.Top | AnchorStyles.Right
+            };
+            _updateButtonPanel.Click += (s, e) => RunSelfUpdate();
 
             _hotkeyLabel = new Label
             {
@@ -594,6 +566,7 @@ namespace ArcticJoiner
             _settingsPanel.Controls.Add(_froststrapPathBox);
             _settingsPanel.Controls.Add(_browseButton);
             _settingsPanel.Controls.Add(checkUpdateButton);
+            _settingsPanel.Controls.Add(_updateButtonPanel);
             _settingsPanel.Controls.Add(_hotkeyLabel);
             _settingsPanel.Controls.Add(_changeHotkeyButton);
             _settingsPanel.Controls.Add(fastFlagsButton);
@@ -609,16 +582,11 @@ namespace ArcticJoiner
             Controls.Add(_autoJoinCheck);
             Controls.Add(_closeAfterCheck);
             Controls.Add(_openSettingsButton);
-            Controls.Add(_pinButton);
             Controls.Add(_prevButton);
             Controls.Add(_onTopCheck);
             Controls.Add(_killCheck);
-            Controls.Add(pinnedLabel);
-            Controls.Add(_pinnedPanel);
             Controls.Add(_settingsPanel);
             Controls.Add(_updateButton);
-
-            RenderPinned();
 
             AcceptButton = _joinButton;
 
@@ -845,6 +813,12 @@ namespace ArcticJoiner
                         _updateButton.Text = "Update available (v" + newer + ") - install";
                         _updateButton.Visible = true;
                         _updateButton.Enabled = true;
+                        if (_updateButtonPanel != null)
+                        {
+                            _updateButtonPanel.Text = "Install v" + newer;
+                            _updateButtonPanel.Visible = true;
+                            _updateButtonPanel.Enabled = true;
+                        }
                     });
                 }
                 catch { }
@@ -854,6 +828,7 @@ namespace ArcticJoiner
         private void RunSelfUpdate()
         {
             _updateButton.Enabled = false;
+            if (_updateButtonPanel != null) _updateButtonPanel.Enabled = false;
             SetStatus("Fetching the latest version from GitHub...", false);
             System.Threading.Tasks.Task.Run((Action)(() =>
             {
@@ -912,7 +887,11 @@ namespace ArcticJoiner
                         " (tip: the app folder must be writable - keep it in your user folder, not Program Files)", true);
                     try
                     {
-                        Invoke((MethodInvoker)delegate { _updateButton.Enabled = true; });
+                        Invoke((MethodInvoker)delegate
+                        {
+                            _updateButton.Enabled = true;
+                            if (_updateButtonPanel != null) _updateButtonPanel.Enabled = true;
+                        });
                     }
                     catch { }
                 }
@@ -933,33 +912,6 @@ namespace ArcticJoiner
         private void BuildTrayIcon()
         {
             var menu = new ContextMenuStrip();
-
-            // Pinned games: one-click join without needing a link.
-            var pinnedMenu = new ToolStripMenuItem("Pinned games");
-            if (_pinned.Count == 0)
-            {
-                var noneItem = new ToolStripMenuItem("(none yet - pin one in the app)");
-                noneItem.Enabled = false;
-                pinnedMenu.DropDownItems.Add(noneItem);
-            }
-            else
-            {
-                foreach (PinnedGame pin in _pinned)
-                {
-                    PinnedGame p = pin;
-                    pinnedMenu.DropDownItems.Add(PinDisplay(p), null, (s, e) => JoinPlace(p.PlaceId));
-                }
-                pinnedMenu.DropDownItems.Add(new ToolStripSeparator());
-                pinnedMenu.DropDownItems.Add("Unpin all", null, (s, e) =>
-                {
-                    _pinned.Clear();
-                    SavePinned();
-                    RenderPinned();
-                    BuildTrayIcon();
-                });
-            }
-            menu.Items.Add(pinnedMenu);
-            menu.Items.Add(new ToolStripSeparator());
 
             // Quick rejoin: the last few joined links, named where known.
             foreach (string entry in _history)
@@ -1593,195 +1545,6 @@ namespace ArcticJoiner
             if (_prevTip != null) _prevTip.SetToolTip(_prevButton, "Rejoin: " + HistoryTargetLabel(entry));
         }
 
-        // ---- Pinned games ----
-
-        private static string PinnedFile()
-        {
-            // Lives next to the exe, same as settings and history.
-            return Path.Combine(Path.GetDirectoryName(Application.ExecutablePath), "pinned.txt");
-        }
-
-        private List<PinnedGame> LoadPinned()
-        {
-            var result = new List<PinnedGame>();
-            try
-            {
-                if (File.Exists(PinnedFile()))
-                {
-                    foreach (string line in File.ReadAllLines(PinnedFile()))
-                    {
-                        string t = line.Trim();
-                        if (t.Length == 0) continue;
-                        int bar = t.IndexOf('|');
-                        string id = (bar >= 0 ? t.Substring(0, bar) : t).Trim();
-                        string name = bar >= 0 ? t.Substring(bar + 1).Trim() : "";
-                        if (id.Length == 0) continue;
-                        bool dup = false;
-                        foreach (PinnedGame existing in result) if (existing.PlaceId == id) dup = true;
-                        if (dup) continue;
-                        result.Add(new PinnedGame(id, name));
-                        if (result.Count >= 8) break;
-                    }
-                }
-            }
-            catch { }
-            return result;
-        }
-
-        private void SavePinned()
-        {
-            try
-            {
-                string file = PinnedFile();
-                Directory.CreateDirectory(Path.GetDirectoryName(file));
-                var sb = new StringBuilder();
-                foreach (PinnedGame pin in _pinned) sb.AppendLine(pin.PlaceId + "|" + (pin.Name ?? ""));
-                File.WriteAllText(file, sb.ToString());
-            }
-            catch { }
-        }
-
-        private static string ExtractPlaceId(string raw)
-        {
-            string text = (raw ?? "").Trim();
-            if (text.Length == 0) return null;
-            var m = System.Text.RegularExpressions.Regex.Match(
-                text, "placeId=(\\d+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-            if (m.Success) return m.Groups[1].Value;
-            m = System.Text.RegularExpressions.Regex.Match(text, "/games/(\\d+)");
-            if (m.Success) return m.Groups[1].Value;
-            if (System.Text.RegularExpressions.Regex.IsMatch(text, "^\\d+$")) return text;
-            return null;
-        }
-
-        private string KnownPlaceName(string placeId)
-        {
-            foreach (string entry in _history)
-            {
-                var m = System.Text.RegularExpressions.Regex.Match(entry, "placeId=(\\d+)");
-                if (!m.Success || m.Groups[1].Value != placeId) continue;
-                string name;
-                if (_historyNames.TryGetValue(entry, out name)) return name;
-            }
-            return null;
-        }
-
-        private void PinCurrent()
-        {
-            string placeId = ExtractPlaceId(_linkBox.Text);
-            if (placeId == null)
-            {
-                SetStatus("Paste a game link or place ID first, then click Pin current.", true);
-                return;
-            }
-            AddPin(placeId, KnownPlaceName(placeId));
-        }
-
-        private void AddPin(string placeId, string name)
-        {
-            foreach (PinnedGame existing in _pinned)
-            {
-                if (existing.PlaceId == placeId)
-                {
-                    SetStatus("That game is already pinned.", false);
-                    return;
-                }
-            }
-            if (_pinned.Count >= 8)
-            {
-                SetStatus("You can pin up to 8 games - right-click a pin to remove one.", true);
-                return;
-            }
-
-            var pin = new PinnedGame(placeId, name);
-            _pinned.Add(pin);
-            SavePinned();
-            RenderPinned();
-            BuildTrayIcon();
-
-            if (!string.IsNullOrWhiteSpace(name))
-            {
-                SetStatus("Pinned " + name + ".", false);
-                return;
-            }
-
-            SetStatus("Pinned place " + placeId + " - fetching its name...", false);
-            string copy = placeId;
-            System.Threading.Tasks.Task.Run((Action)(() =>
-            {
-                string resolved = FetchGameName(copy);
-                if (resolved == null) return;
-                try
-                {
-                    Invoke((MethodInvoker)delegate
-                    {
-                        pin.Name = resolved;
-                        SavePinned();
-                        RenderPinned();
-                        BuildTrayIcon();
-                        SetStatus("Pinned " + resolved + ".", false);
-                    });
-                }
-                catch { }
-            }));
-        }
-
-        private void RemovePin(string placeId)
-        {
-            _pinned.RemoveAll(p => p.PlaceId == placeId);
-            SavePinned();
-            RenderPinned();
-            BuildTrayIcon();
-        }
-
-        private void JoinPlace(string placeId)
-        {
-            if (string.IsNullOrWhiteSpace(placeId)) return;
-            TryJoin("roblox://placeId=" + placeId, closeAfter: false);
-        }
-
-        private static string PinDisplay(PinnedGame pin)
-        {
-            string name = (pin.Name ?? "").Trim();
-            if (name.Length == 0) name = "Place " + pin.PlaceId;
-            if (name.Length > 22) name = name.Substring(0, 21) + "...";
-            return name;
-        }
-
-        private void RenderPinned()
-        {
-            if (_pinnedPanel == null) return;
-            _pinnedPanel.Controls.Clear();
-
-            foreach (PinnedGame pin in _pinned)
-            {
-                PinnedGame p = pin;
-                var btn = new Button
-                {
-                    Text = PinDisplay(p),
-                    AutoSize = true,
-                    FlatStyle = FlatStyle.System,
-                    Margin = new Padding(0, 0, 6, 6),
-                    Padding = new Padding(6, 2, 6, 2)
-                };
-                btn.Click += (s, e) => JoinPlace(p.PlaceId);
-                var pinMenu = new ContextMenuStrip();
-                pinMenu.Items.Add("Unpin", null, (s, e) => RemovePin(p.PlaceId));
-                btn.ContextMenuStrip = pinMenu;
-                _pinnedPanel.Controls.Add(btn);
-            }
-
-            if (_pinned.Count == 0)
-            {
-                _pinnedPanel.Controls.Add(new Label
-                {
-                    Text = "No pinned games yet - paste a game link and click Pin current.",
-                    AutoSize = true,
-                    ForeColor = SystemColors.GrayText,
-                    Margin = new Padding(2, 8, 0, 0)
-                });
-            }
-        }
     }
 }
 
@@ -1936,7 +1699,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "2.6.1";
+        public const string Version = "2.6.2";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.
