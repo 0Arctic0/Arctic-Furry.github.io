@@ -943,7 +943,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "1.7.1";
+        public const string Version = "1.7.2";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.
@@ -1000,8 +1000,38 @@ namespace ArcticJoiner
                    System.DateTime.UtcNow.Ticks.ToString();
         }
 
+        // Downloads via the GitHub API (not aggressively cached, unlike
+        // raw.githubusercontent.com which can serve stale content on some
+        // networks even with cache-busting queries). Falls back to raw.
+        private static string ApiUrlFor(string rawUrl)
+        {
+            if (rawUrl.StartsWith(BaseUrl, StringComparison.OrdinalIgnoreCase))
+            {
+                return "https://api.github.com/repos/Arctic-Furry/Arctic-Furry.github.io/contents/windows-app/" +
+                       rawUrl.Substring(BaseUrl.Length);
+            }
+            return null;
+        }
+
+        private static System.Net.WebClient NewApiClient()
+        {
+            var wc = new System.Net.WebClient();
+            wc.Headers.Add("User-Agent", "ArcticJoiner");
+            wc.Headers.Add("Accept", "application/vnd.github.raw");
+            return wc;
+        }
+
         public static string DownloadText(string url)
         {
+            string api = ApiUrlFor(url);
+            if (api != null)
+            {
+                try
+                {
+                    using (var wc = NewApiClient()) { return wc.DownloadString(api); }
+                }
+                catch { }
+            }
             using (var wc = new System.Net.WebClient())
             {
                 return wc.DownloadString(Busted(url));
@@ -1010,6 +1040,19 @@ namespace ArcticJoiner
 
         public static void DownloadFile(string url, string dest)
         {
+            string api = ApiUrlFor(url);
+            if (api != null)
+            {
+                try
+                {
+                    using (var wc = NewApiClient())
+                    {
+                        System.IO.File.WriteAllBytes(dest, wc.DownloadData(api));
+                    }
+                    return;
+                }
+                catch { }
+            }
             using (var wc = new System.Net.WebClient())
             {
                 wc.DownloadFile(Busted(url), dest);
