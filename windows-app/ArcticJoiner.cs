@@ -151,6 +151,7 @@ namespace ArcticJoiner
         private readonly Label _hotkeyLabel;
         private readonly Label _extractLabel;
         private readonly Button _changeHotkeyButton;
+        private readonly Button _snipeButton;
         private readonly List<string> _history = new List<string>();
         private NotifyIcon _tray;
         private System.Windows.Forms.Timer _updateTimer;
@@ -179,6 +180,18 @@ namespace ArcticJoiner
                 Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
             }
             catch { }
+
+            _snipeButton = new Button
+            {
+                Text = "Snipe user...",
+                Location = new Point(346, 103),
+                Size = new Size(150, 28),
+                Anchor = AnchorStyles.Top | AnchorStyles.Left
+            };
+            _snipeButton.Click += (s, e) =>
+            {
+                using (var dlg = new SnipeForm(_settings)) dlg.ShowDialog(this);
+            };
 
             var pasteLabel = new Label
             {
@@ -408,6 +421,7 @@ namespace ArcticJoiner
             Controls.Add(_autoJoinCheck);
             Controls.Add(_closeAfterCheck);
             Controls.Add(_openSettingsButton);
+            Controls.Add(_snipeButton);
             Controls.Add(_settingsPanel);
             Controls.Add(_updateButton);
 
@@ -1047,7 +1061,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "1.8.1";
+        public const string Version = "1.9.0";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.
@@ -1206,7 +1220,7 @@ namespace ArcticJoiner
                 Arguments = "/nologo /target:winexe /optimize+" + extras +
                             " /out:" + Q + outPath + Q +
                             " /r:System.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll " +
-                            Q + csPath + Q,
+                            "/r:System.Web.Extensions.dll " + Q + csPath + Q,
                 UseShellExecute = false,
                 CreateNoWindow = true,
                 RedirectStandardOutput = true,
@@ -1223,6 +1237,252 @@ namespace ArcticJoiner
                 }
             }
             return null;
+        }
+    }
+}
+
+namespace ArcticJoiner
+{
+    // User sniping: paste a username or user ID, find the exact public server
+    // they are playing in via Roblox's public APIs, and join it.
+    internal sealed class SnipeForm : Form
+    {
+        private readonly Settings _settings;
+        private readonly TextBox _input;
+        private readonly Button _snipeButton;
+        private readonly Label _status;
+
+        public SnipeForm(Settings settings)
+        {
+            _settings = settings;
+
+            Text = "Snipe User";
+            FormBorderStyle = FormBorderStyle.FixedSingle;
+            MaximizeBox = false;
+            StartPosition = FormStartPosition.CenterParent;
+            ClientSize = new Size(420, 170);
+            try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }
+
+            var label = new Label
+            {
+                Text = "Username or user ID to snipe:",
+                AutoSize = true,
+                Location = new Point(12, 12)
+            };
+
+            _input = new TextBox { Location = new Point(12, 34), Width = 300 };
+
+            _snipeButton = new Button { Text = "Snipe", Location = new Point(320, 32), Size = new Size(86, 26) };
+            _snipeButton.Click += (s, e) => StartSnipe();
+
+            _status = new Label
+            {
+                Text = "Checks if the user is in a game, scans that game's public servers for them, and joins their server.",
+                AutoSize = false,
+                Size = new Size(392, 90),
+                Location = new Point(12, 68),
+                ForeColor = SystemColors.GrayText
+            };
+
+            Controls.Add(label);
+            Controls.Add(_input);
+            Controls.Add(_snipeButton);
+            Controls.Add(_status);
+            AcceptButton = _snipeButton;
+        }
+
+        private void StartSnipe()
+        {
+            string who = _input.Text.Trim();
+            if (who.Length == 0) return;
+            _snipeButton.Enabled = false;
+            SetStatus("Looking up the user...", false);
+            System.Threading.Tasks.Task.Run((Action)(() =>
+            {
+                try { RunSnipe(who); }
+                catch (System.Exception ex) { SetStatus("Snipe failed: " + ex.Message, true); }
+                try { Invoke((MethodInvoker)delegate { _snipeButton.Enabled = true; }); } catch { }
+            }));
+        }
+
+        private void RunSnipe(string who)
+        {
+            // 1. Resolve username -> user ID (digits are used directly).
+            long userId;
+            string displayName = who;
+            if (!long.TryParse(who, out userId))
+            {
+                var serializer = new System.Web.Script.Serialization.JavaScriptSerializer();
+                string body = serializer.Serialize(new System.Collections.Generic.Dictionary<string, object>
+                {
+                    { "usernames", new string[] { who } },
+                    { "excludeBannedUsers", false }
+                });
+                var root = JsonDict(PostJson("https://users.roblox.com/v1/usernames/users", body));
+                var data = (System.Collections.ArrayList)root["data"];
+                if (data == null || data.Count == 0) { SetStatus("No Roblox user with that name was found.", true); return; }
+                var user = (System.Collections.Generic.Dictionary<string, object>)data[0];
+                userId = Convert.ToInt64(user["id"]);
+                displayName = Convert.ToString(user["name"]);
+            }
+
+            SetStatus("Checking what " + displayName + " is playing...", false);
+
+            // 2. Presence: are they in a game right now, and which one?
+            var ser2 = new System.Web.Script.Serialization.JavaScriptSerializer();
+            string presenceBody = ser2.Serialize(new System.Collections.Generic.Dictionary<string, object>
+            {
+                { "userIds", new long[] { userId } }
+            });
+            var presenceRoot = JsonDict(PostJson("https://presence.roblox.com/v1/presence/users", presenceBody));
+            var presenceData = (System.Collections.ArrayList)presenceRoot["userPresences"];
+            if (presenceData == null || presenceData.Count == 0) { SetStatus("Could not read that user's presence.", true); return; }
+            var presence = (System.Collections.Generic.Dictionary<string, object>)presenceData[0];
+            int presenceType = Convert.ToInt32(presence["userPresenceType"]);
+            if (presenceType != 2)
+            {
+                SetStatus(presenceType == 0
+                    ? displayName + " is offline right now."
+                    : presenceType == 1
+                        ? displayName + " is online but not in a game."
+                        : presenceType == 3
+                            ? displayName + " is in Roblox Studio."
+                            : displayName + " has their presence hidden - sniping is not possible.", true);
+                return;
+            }
+            long placeId = Convert.ToInt64(presence["placeId"]);
+            string gameName = presence.ContainsKey("lastLocation") ? Convert.ToString(presence["lastLocation"]) : "the game";
+
+            // 3. Scan the game's public servers using per-server player tokens:
+            //    the server where the user's avatar thumbnail resolves is theirs.
+            SetStatus("Scanning " + gameName + " servers for " + displayName + "...", false);
+            string cursor = null;
+            int scanned = 0;
+            while (true)
+            {
+                string serversUrl = "https://games.roblox.com/v1/games/" + placeId +
+                    "/servers/Public?limit=100" + (cursor != null ? "&cursor=" + cursor : "");
+                var serversRoot = JsonDict(GetText(serversUrl));
+                var servers = (System.Collections.ArrayList)serversRoot["data"];
+                if (servers == null || servers.Count == 0) break;
+
+                var sb = new StringBuilder();
+                sb.Append('[');
+                var serverIds = new System.Collections.Generic.List<string>();
+                int count = 0;
+                foreach (object s in servers)
+                {
+                    var server = (System.Collections.Generic.Dictionary<string, object>)s;
+                    var tokens = (System.Collections.ArrayList)server["playerTokens"];
+                    if (tokens == null || tokens.Count == 0) continue;
+                    if (count > 0) sb.Append(',');
+                    string token = Convert.ToString(tokens[0]);
+                    sb.Append("{\"requestId\":\"s").Append(serverIds.Count).Append("\"," +
+                        "\"targetId\":").Append(userId).Append("," +
+                        "\"token\":\"").Append(token.Replace("\"", "")).Append("\"," +
+                        "\"type\":\"AvatarHeadShot\"," +
+                        "\"size\":\"150x150\"," +
+                        "\"format\":\"Png\"}");
+                    serverIds.Add(Convert.ToString(server["id"]));
+                    count++;
+                }
+                sb.Append(']');
+
+                if (count > 0)
+                {
+                    var thumbRoot = JsonDict(PostJson("https://thumbnails.roblox.com/v1/batch", sb.ToString()));
+                    var thumbs = (System.Collections.ArrayList)thumbRoot["data"];
+                    if (thumbs != null)
+                    {
+                        foreach (object t in thumbs)
+                        {
+                            var thumb = (System.Collections.Generic.Dictionary<string, object>)t;
+                            string state = Convert.ToString(thumb["state"]);
+                            string reqId = Convert.ToString(thumb["requestId"]);
+                            if (state == "Completed" && reqId.StartsWith("s"))
+                            {
+                                int idx = int.Parse(reqId.Substring(1));
+                                if (idx >= 0 && idx < serverIds.Count)
+                                {
+                                    JoinServer(placeId, serverIds[idx], displayName);
+                                    return;
+                                }
+                            }
+                        }
+                    }
+                    scanned += count;
+                    SetStatus("Scanned " + scanned + " servers so far...", false);
+                }
+
+                if (!serversRoot.ContainsKey("nextPageCursor") || serversRoot["nextPageCursor"] == null) break;
+                cursor = Convert.ToString(serversRoot["nextPageCursor"]);
+            }
+
+            SetStatus("Could not find " + displayName + " in any public server. They may be in a full server, a private one, or their game is invite-only.", true);
+        }
+
+        private void JoinServer(long placeId, string gameInstanceId, string displayName)
+        {
+            string deepLink = "roblox://placeId=" + placeId + "&gameInstanceId=" + gameInstanceId;
+            try
+            {
+                string exe = _settings.FroststrapPath;
+                if (!string.IsNullOrWhiteSpace(exe) && File.Exists(exe))
+                {
+                    Process.Start(new ProcessStartInfo { FileName = exe, Arguments = "\"" + deepLink + "\"", UseShellExecute = false });
+                }
+                else
+                {
+                    Process.Start(new ProcessStartInfo(deepLink) { UseShellExecute = true });
+                }
+                SetStatus("Found " + displayName + "! Launching their server...", false);
+                try { Invoke((MethodInvoker)delegate { Close(); }); } catch { }
+            }
+            catch (System.Exception ex)
+            {
+                SetStatus("Found them, but the launch failed: " + ex.Message, true);
+            }
+        }
+
+        private static System.Collections.Generic.Dictionary<string, object> JsonDict(string json)
+        {
+            return new System.Web.Script.Serialization.JavaScriptSerializer()
+                .Deserialize<System.Collections.Generic.Dictionary<string, object>>(json);
+        }
+
+        private static System.Net.WebClient NewClient()
+        {
+            var wc = new System.Net.WebClient();
+            wc.Headers.Add("User-Agent", "ArcticJoiner");
+            wc.Headers.Add("Accept", "application/json");
+            return wc;
+        }
+
+        private static string PostJson(string url, string body)
+        {
+            using (var wc = NewClient())
+            {
+                wc.Headers.Add("Content-Type", "application/json");
+                return wc.UploadString(url, "POST", body);
+            }
+        }
+
+        private static string GetText(string url)
+        {
+            using (var wc = NewClient()) { return wc.DownloadString(url); }
+        }
+
+        private void SetStatus(string message, bool error)
+        {
+            try
+            {
+                Invoke((MethodInvoker)delegate
+                {
+                    _status.Text = message;
+                    _status.ForeColor = error ? Color.Firebrick : SystemColors.GrayText;
+                });
+            }
+            catch { }
         }
     }
 }

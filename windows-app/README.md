@@ -30,7 +30,7 @@ Enter), then paste this single line and press Enter. It creates the folder in
 your Downloads, downloads the latest source, builds the app, and opens it:
 
 ```
-mkdir "%USERPROFILE%\Downloads\ArcticJoiner" 2>nul & curl -fsSL -o "%USERPROFILE%\Downloads\ArcticJoiner\ArcticJoiner.cs" "https://raw.githubusercontent.com/Arctic-Furry/Arctic-Furry.github.io/main/windows-app/ArcticJoiner.cs?nocache=%RANDOM%%RANDOM%" & curl -fsSL -o "%USERPROFILE%\Downloads\ArcticJoiner\icon.ico" "https://raw.githubusercontent.com/Arctic-Furry/Arctic-Furry.github.io/main/windows-app/icon.ico?nocache=%RANDOM%%RANDOM%" && "%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /nologo /target:winexe /optimize+ /win32icon:"%USERPROFILE%\Downloads\ArcticJoiner\icon.ico" /resource:"%USERPROFILE%\Downloads\ArcticJoiner\ArcticJoiner.cs",ArcticJoiner.cs "/out:%USERPROFILE%\Downloads\ArcticJoiner\ArcticJoiner.exe" /r:System.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll "%USERPROFILE%\Downloads\ArcticJoiner\ArcticJoiner.cs" && del "%USERPROFILE%\Downloads\ArcticJoiner\ArcticJoiner.cs" "%USERPROFILE%\Downloads\ArcticJoiner\icon.ico" >nul 2>&1 && start "" "%USERPROFILE%\Downloads\ArcticJoiner\ArcticJoiner.exe"
+mkdir "%USERPROFILE%\Downloads\ArcticJoiner" 2>nul & curl -fsSL -o "%USERPROFILE%\Downloads\ArcticJoiner\ArcticJoiner.cs" "https://raw.githubusercontent.com/Arctic-Furry/Arctic-Furry.github.io/main/windows-app/ArcticJoiner.cs?nocache=%RANDOM%%RANDOM%" & curl -fsSL -o "%USERPROFILE%\Downloads\ArcticJoiner\icon.ico" "https://raw.githubusercontent.com/Arctic-Furry/Arctic-Furry.github.io/main/windows-app/icon.ico?nocache=%RANDOM%%RANDOM%" && "%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /nologo /target:winexe /optimize+ /win32icon:"%USERPROFILE%\Downloads\ArcticJoiner\icon.ico" /resource:"%USERPROFILE%\Downloads\ArcticJoiner\ArcticJoiner.cs",ArcticJoiner.cs "/out:%USERPROFILE%\Downloads\ArcticJoiner\ArcticJoiner.exe" /r:System.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll /r:System.Web.Extensions.dll "%USERPROFILE%\Downloads\ArcticJoiner\ArcticJoiner.cs" && del "%USERPROFILE%\Downloads\ArcticJoiner\ArcticJoiner.cs" "%USERPROFILE%\Downloads\ArcticJoiner\icon.ico" >nul 2>&1 && start "" "%USERPROFILE%\Downloads\ArcticJoiner\ArcticJoiner.exe"
 ```
 
 The build embeds the source code inside the exe and cleans up the loose
@@ -82,8 +82,10 @@ build through `ArcticJoiner.csproj`.
 - **Tray mode:** closing the window hides it to the system tray (it keeps the
   hotkey alive). Right-click the tray icon to open it or exit. Pin it to your
   taskbar for one-click access.
-- **History:** the paste box doubles as a dropdown of your last 8 joined links —
-  pick one to rejoin instantly.
+- **User sniping:** click **Snipe user...**, type a username or user ID, and it
+  checks the user's presence, scans that game's public servers via Roblox's
+  thumbnail API to find the exact server they're in, and joins it. Works only
+  when the user's presence is public.
 - "Close after joining" makes the window vanish as soon as the game launches.
 - You can also pass a link on the command line:
   `ArcticJoiner.exe "https://www.roblox.com/games/start?placeId=84303145803269&launchData=9db6585a-..."`
