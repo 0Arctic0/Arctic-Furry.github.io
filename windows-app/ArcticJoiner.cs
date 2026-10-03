@@ -691,82 +691,6 @@ namespace ArcticJoiner
             }
         }
 
-        // Simulates Ctrl+C in the foreground app to grab the current selection,
-        // then restores the clipboard to whatever it held before. Returns the
-        // captured text, or null.
-        private string GrabSelectedText()
-        {
-            string backup = null;
-            bool hadText = false;
-            try { hadText = Clipboard.ContainsText(); if (hadText) backup = Clipboard.GetText(); }
-            catch { }
-            try
-            {
-                const uint VK_CONTROL = 0x11, VK_C = 0x43;
-                const uint KEYEVENTF_KEYUP = 2;
-                SendInputKey(VK_CONTROL, 0);
-                SendInputKey(VK_C, 0);
-                SendInputKey(VK_C, KEYEVENTF_KEYUP);
-                SendInputKey(VK_CONTROL, KEYEVENTF_KEYUP);
-                System.Threading.Thread.Sleep(150);
-                if (!Clipboard.ContainsText()) return null;
-                return Clipboard.GetText();
-            }
-            catch
-            {
-                return null;
-            }
-            finally
-            {
-                try { if (hadText && backup != null) Clipboard.SetText(backup); } catch { }
-            }
-        }
-
-        [System.Runtime.InteropServices.DllImport("user32.dll")]
-        private static extern uint SendInput(uint n, INPUT[] inputs, int size);
-
-        [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
-        private struct INPUT
-        {
-            public uint type;
-            public InputUnion u;
-        }
-
-        [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Explicit)]
-        private struct InputUnion
-        {
-            [System.Runtime.InteropServices.FieldOffset(0)] public MOUSEINPUT mi;
-            [System.Runtime.InteropServices.FieldOffset(0)] public KEYBDINPUT ki;
-        }
-
-        [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
-        private struct KEYBDINPUT
-        {
-            public ushort wVk;
-            public ushort wScan;
-            public uint dwFlags;
-            public uint time;
-            public IntPtr dwExtraInfo;
-        }
-
-        [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
-        private struct MOUSEINPUT
-        {
-            public int dx, dy;
-            public uint mouseData, dwFlags, time;
-            public IntPtr dwExtraInfo;
-        }
-
-        private static void SendInputKey(ushort vk, uint flags)
-        {
-            var input = new INPUT();
-            input.type = 1; // INPUT_KEYBOARD
-            input.u.ki.wVk = vk;
-            input.u.ki.dwFlags = flags;
-            var array = new INPUT[] { input };
-            SendInput(1, array, System.Runtime.InteropServices.Marshal.SizeOf(typeof(INPUT)));
-        }
-
         private void OnHotkey()
         {
             if (_captureHotkey) return; // never join while picking a new hotkey
@@ -775,13 +699,6 @@ namespace ArcticJoiner
             {
                 try { text = Clipboard.GetText(); }
                 catch { System.Threading.Thread.Sleep(100); }
-            }
-
-            // If the clipboard has no Roblox link, try the current selection in
-            // the foreground app (e.g. a highlighted Discord message).
-            if (string.IsNullOrWhiteSpace(text) || LinkParser.Parse(text) == null)
-            {
-                text = GrabSelectedText() ?? text;
             }
             if (string.IsNullOrWhiteSpace(text)) return;
 
@@ -892,18 +809,6 @@ namespace ArcticJoiner
         {
             string text = (raw ?? "").Trim();
             if (text.Length == 0) return null;
-
-            // A whole pasted message (Discord chat, etc.) may contain a link -
-            // pull the first Roblox URL out of it.
-            if (text.IndexOf(' ') >= 0 || text.IndexOf('\n') >= 0)
-            {
-                var match = System.Text.RegularExpressions.Regex.Match(
-                    text,
-                    "(?:https?:\\/\\/|www\\.)[^\\s\\]]*roblox\\.com[^\\s\\)]*",
-                    System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-                if (match.Success) text = match.Value;
-                else return null;
-            }
 
             // Already a deep link - pass straight through.
             if (text.StartsWith("roblox://", StringComparison.OrdinalIgnoreCase)) return text;
@@ -1040,7 +945,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "1.8.0";
+        public const string Version = "1.7.3";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.
