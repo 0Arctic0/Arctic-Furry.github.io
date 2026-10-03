@@ -968,9 +968,14 @@ namespace ArcticJoiner
                 using (var wc = new System.Net.WebClient())
                 {
                     wc.Headers.Add("User-Agent", "ArcticJoiner");
+                    // multiget-place-details needs auth now: place -> universe -> game.
+                    string universeJson = wc.DownloadString(
+                        "https://apis.roproxy.com/universes/v1/places/" + match.Groups[1].Value + "/universe");
+                    var uniMatch = System.Text.RegularExpressions.Regex.Match(universeJson, "\"universeId\"\\s*:\\s*(\\d+)");
+                    if (!uniMatch.Success) return;
                     string json = wc.DownloadString(
-                        "https://games.roproxy.com/v1/games/multiget-place-details?placeIds=" + match.Groups[1].Value);
-                    var nameMatch = System.Text.RegularExpressions.Regex.Match(json, "\"Name\"\\s*:\\s*\"([^\"]+)\"");
+                        "https://games.roproxy.com/v1/games?universeIds=" + uniMatch.Groups[1].Value);
+                    var nameMatch = System.Text.RegularExpressions.Regex.Match(json, "\"name\"\\s*:\\s*\"([^\"]+)\"");
                     string name = nameMatch.Success ? nameMatch.Groups[1].Value : "the game";
                     SetStatusUi("Launched " + name + ".", false);
                     try

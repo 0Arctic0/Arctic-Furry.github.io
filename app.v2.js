@@ -375,13 +375,19 @@
       placeValue.textContent = placeId;
     }
     if (placeId && mode !== 'private') {
-      // Fetch the game's name + icon so the invite page shows what you are joining.
-      fetch('https://games.roproxy.com/v1/games/multiget-place-details?placeIds=' + placeId)
+      // Fetch the game's name so the invite page shows what you are joining.
+      // multiget-place-details now needs auth, so go place -> universe -> game.
+      fetch('https://apis.roproxy.com/universes/v1/places/' + placeId + '/universe')
         .then(function (r) { return r.json(); })
-        .then(function (games) {
-          if (!games || !games.length) return;
-          var game = games[0];
-          if (placeLabel) placeLabel.textContent = game.Name || 'Place ID';
+        .then(function (u) {
+          if (!u || !u.universeId) return null;
+          return fetch('https://games.roproxy.com/v1/games?universeIds=' + u.universeId)
+            .then(function (r) { return r.json(); });
+        })
+        .then(function (root) {
+          var game = root && root.data && root.data[0];
+          if (!game) return;
+          if (placeLabel) placeLabel.textContent = game.name || 'Place ID';
           if (description) {
             description.textContent = 'Joining ' + (game.Name || 'this place') +
               '. Tap the button below to open Roblox for this place' +

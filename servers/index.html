@@ -72,9 +72,16 @@
       currentPlaceId = placeId;
       loadBtn.disabled = true;
       setStatus('Loading game info...');
-      getJson('https://games.roproxy.com/v1/games/multiget-place-details?placeIds=' + placeId)
-        .then(function (games) {
-          if (!games || !games.length) {
+      // multiget-place-details now needs auth, so resolve place -> universe -> game info.
+      fetch('https://apis.roproxy.com/universes/v1/places/' + placeId + '/universe')
+        .then(function (r) { return r.json(); })
+        .then(function (u) {
+          if (!u || !u.universeId) throw new Error('Could not resolve that place.');
+          return getJson('https://games.roproxy.com/v1/games?universeIds=' + u.universeId);
+        })
+        .then(function (root) {
+          var games = root.data || [];
+          if (!games.length) {
             throw new Error('Could not load that game.');
           }
           var g = games[0];
@@ -82,7 +89,7 @@
             '<div style="display:flex; align-items:center; gap:12px;">' +
             '<img width="64" height="64" style="border-radius:8px;" alt="game icon" src="https://thumbnails.roproxy.com/v1/places/gameicons?placeIds=' +
             placeId + '&size=150x150&format=Png&isCircular=false" />' +
-            '<div><strong>' + escapeHtml(g.Name) + '</strong>' +
+            '<div><strong>' + escapeHtml(g.name) + '</strong>' +
             '<div class="small">' + (g.playing || 0).toLocaleString() + ' playing right now - place ' + placeId + '</div></div></div>';
           loadServers();
         })
