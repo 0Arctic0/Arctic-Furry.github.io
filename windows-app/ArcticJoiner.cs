@@ -55,8 +55,8 @@ namespace ArcticJoiner
         public string FroststrapPath = "";
         public bool AutoJoinOnPaste = true;
         public bool CloseAfterJoin = false;
-        public int HotkeyMods = 6;        // Ctrl(2) + Shift(4)
-        public string HotkeyKey = "J";
+        public int HotkeyMods = 0;        // no modifiers needed by default
+        public string HotkeyKey = "Insert";
 
         private static string SettingsFile
         {
@@ -670,7 +670,7 @@ namespace ArcticJoiner
                     SetStatus("Hotkey change cancelled.", false);
                     return;
                 }
-                if (e.Modifiers != Keys.None && e.KeyCode != Keys.ControlKey &&
+                if (e.KeyCode != Keys.ControlKey &&
                     e.KeyCode != Keys.ShiftKey && e.KeyCode != Keys.Menu)
                 {
                     int mods = 0;
@@ -882,7 +882,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "1.5.2";
+        public const string Version = "1.5.3";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.

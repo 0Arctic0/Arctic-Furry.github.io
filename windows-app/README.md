@@ -78,7 +78,7 @@ build through `ArcticJoiner.csproj`.
 - Open the exe, paste a link — it joins automatically the moment the link
   appears in the box (turn that off with the "Join instantly on paste" checkbox).
 - Or paste and press **Enter** / click **Join**.
-- **Global hotkey** (default `Ctrl+Shift+J`, fully customizable in settings):
+- **Global hotkey** (default `Insert`, fully customizable in settings):
   press it anywhere in Windows — Discord, browser, anywhere — and it instantly
   joins whatever Roblox link is on your clipboard. No window needed.
 - **Tray mode:** closing the window hides it to the system tray (it keeps the
