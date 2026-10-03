@@ -92,6 +92,7 @@ namespace ArcticJoiner
         public string HotkeyKey = "Insert";
         public int DeleteMods = 0;        // second keybind: extract a link from copied text
         public string DeleteKey = "Delete";
+        public bool AlwaysOnTop = false;
 
         private static string SettingsFile
         {
@@ -138,6 +139,7 @@ namespace ArcticJoiner
                         else if (key == "hotkeyKey") s.HotkeyKey = val.Length > 0 ? val : "Insert";
                         else if (key == "deleteMods") { int n; if (int.TryParse(val, out n)) s.DeleteMods = n; }
                         else if (key == "deleteKey") s.DeleteKey = val.Length > 0 ? val : "Delete";
+                        else if (key == "alwaysOnTop") s.AlwaysOnTop = val == "1";
                     }
                 }
             }
@@ -159,6 +161,7 @@ namespace ArcticJoiner
                     .AppendLine("hotkeyKey=" + HotkeyKey)
                     .AppendLine("deleteMods=" + DeleteMods)
                     .AppendLine("deleteKey=" + DeleteKey)
+                    .AppendLine("alwaysOnTop=" + (AlwaysOnTop ? "1" : "0"))
                     .ToString());
             }
             catch { }
@@ -175,6 +178,7 @@ namespace ArcticJoiner
         private readonly Label _status;
         private readonly CheckBox _autoJoinCheck;
         private readonly CheckBox _closeAfterCheck;
+        private readonly CheckBox _onTopCheck;
         private readonly TextBox _froststrapPathBox;
         private readonly Button _browseButton;
         private readonly Button _openSettingsButton;
@@ -213,6 +217,7 @@ namespace ArcticJoiner
                 Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
             }
             catch { }
+            TopMost = _settings.AlwaysOnTop;
 
             var pasteLabel = new Label
             {
@@ -231,7 +236,30 @@ namespace ArcticJoiner
             };
             _linkBox.Font = new Font(_linkBox.Font, FontStyle.Bold);
             _history.AddRange(LoadHistory());
-            foreach (string item in _history) _linkBox.Items.Add(item);
+            RenderHistoryItems();
+            // Resolve game names for existing history entries in the background.
+            foreach (string entry in _history)
+            {
+                var match = System.Text.RegularExpressions.Regex.Match(entry, "placeId=(\\d+)");
+                if (!match.Success) continue;
+                string copy = entry;
+                string placeId = match.Groups[1].Value;
+                System.Threading.Tasks.Task.Run((Action)(() =>
+                {
+                    string name = FetchGameName(placeId);
+                    if (name == null) return;
+                    try
+                    {
+                        Invoke((MethodInvoker)delegate
+                        {
+                            _historyNames[copy] = name;
+                            RenderHistoryItems();
+                            BuildTrayIcon();
+                        });
+                    }
+                    catch { }
+                }));
+            }
             _linkBox.KeyDown += LinkBoxKeyDown;
 
             _joinButton = new Button
@@ -279,6 +307,19 @@ namespace ArcticJoiner
                 _settings.Save();
             };
 
+            _onTopCheck = new CheckBox
+            {
+                Text = "Always on top",
+                Checked = TopMost,
+                AutoSize = true,
+                Location = new Point(410, 148)
+            };
+            _onTopCheck.CheckedChanged += (s, e) =>
+            {
+                TopMost = _onTopCheck.Checked;
+                SaveTopMost(_onTopCheck.Checked);
+            };
+
             _openSettingsButton = new Button
             {
                 Text = "Froststrap settings",
@@ -323,6 +364,17 @@ namespace ArcticJoiner
                 Width = 500,
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
             };
+            if (string.IsNullOrWhiteSpace(_settings.FroststrapPath))
+            {
+                // Auto-detect Froststrap on first run so the box is never empty.
+                string found = DetectFroststrap();
+                if (found != null)
+                {
+                    _settings.FroststrapPath = found;
+                    _settings.Save();
+                    _froststrapPathBox.Text = found;
+                }
+            }
             _froststrapPathBox.TextChanged += (s, e) =>
             {
                 _settings.FroststrapPath = _froststrapPathBox.Text.Trim();
@@ -352,7 +404,7 @@ namespace ArcticJoiner
 
             var hint = new Label
             {
-                Text = "Tip: if the box above is empty, the joiner opens the roblox:// link directly, so whatever app is registered for it (Froststrap, if you set it as default) launches.",
+                Text = "Tip: empty Froststrap box = the roblox:// handler is used (Froststrap, if registered).",
                 AutoSize = false,
                 Size = new Size(588, 60),
                 Location = new Point(0, 196),
@@ -361,9 +413,10 @@ namespace ArcticJoiner
 
             var checkUpdateButton = new Button
             {
-                Text = "Check for updates now",
-                Location = new Point(0, 56),
-                Size = new Size(150, 26)
+                Text = "Check for updates",
+                Location = new Point(508, 56),
+                Size = new Size(80, 26),
+                Anchor = AnchorStyles.Top | AnchorStyles.Right
             };
             checkUpdateButton.Click += (s, e) =>
             {
@@ -385,7 +438,7 @@ namespace ArcticJoiner
             {
                 Text = "Change hotkey (" + HotkeyDescription() + ")...",
                 Location = new Point(0, 126),
-                Size = new Size(220, 26)
+                Width = 500
             };
             _changeHotkeyButton.Click += (s, e) =>
             {
@@ -413,8 +466,9 @@ namespace ArcticJoiner
             var changeDeleteKeyButton = new Button
             {
                 Text = "Change key (" + DeleteDescription() + ")...",
-                Location = new Point(230, 126),
-                Size = new Size(220, 26)
+                Location = new Point(508, 126),
+                Size = new Size(80, 26),
+                Anchor = AnchorStyles.Top | AnchorStyles.Right
             };
             changeDeleteKeyButton.Click += (s, e) =>
             {
@@ -442,6 +496,7 @@ namespace ArcticJoiner
             Controls.Add(_autoJoinCheck);
             Controls.Add(_closeAfterCheck);
             Controls.Add(_openSettingsButton);
+            Controls.Add(_onTopCheck);
             Controls.Add(_settingsPanel);
             Controls.Add(_updateButton);
 
@@ -503,6 +558,12 @@ namespace ArcticJoiner
             };
         }
 
+        private void SaveTopMost(bool value)
+        {
+            _settings.AlwaysOnTop = value;
+            _settings.Save();
+        }
+
         private void LinkBoxKeyDown(object sender, KeyEventArgs e)
         {
             if (e.KeyCode == Keys.Enter)
@@ -523,6 +584,11 @@ namespace ArcticJoiner
 
             try
             {
+                // Close any running Roblox/Froststrap first so the new join does
+                // not stack a second client in the taskbar.
+                KillRunningRoblox();
+                System.Threading.Thread.Sleep(300); // let Windows release the old client
+
                 string exe = _settings.FroststrapPath;
                 if (!string.IsNullOrWhiteSpace(exe) && File.Exists(exe))
                 {
@@ -700,27 +766,37 @@ namespace ArcticJoiner
         private void BuildTrayIcon()
         {
             var menu = new ContextMenuStrip();
+            // Quick rejoin: the last few joined links, named where known.
+            foreach (string entry in _history)
+            {
+                string copy = entry;
+                menu.Items.Add(HistoryDisplay(copy), null, (s, e) => TryJoin(copy, closeAfter: false));
+            }
+            if (_history.Count > 0) menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
             menu.Items.Add("Open Arctic Joiner", null, (s, e) => { Show(); Activate(); });
             menu.Items.Add("Join from clipboard", null, (s, e) => OnHotkey());
             menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
             menu.Items.Add("Exit", null, (s, e) => { _reallyExit = true; Close(); });
-            _tray = new NotifyIcon
+            if (_tray == null)
             {
-                Icon = Icon,
-                Text = "Arctic Joiner",
-                ContextMenuStrip = menu,
-                Visible = true
-            };
-            // Left-click the tray icon: open the window straight away.
-            _tray.MouseClick += (s, e) =>
-            {
-                if (e.Button == MouseButtons.Left)
+                _tray = new NotifyIcon
                 {
-                    Show();
-                    Activate();
-                    _linkBox.Focus();
-                }
-            };
+                    Icon = Icon,
+                    Text = "Arctic Joiner",
+                    Visible = true
+                };
+                // Left-click the tray icon: open the window straight away.
+                _tray.MouseClick += (s, e) =>
+                {
+                    if (e.Button == MouseButtons.Left)
+                    {
+                        Show();
+                        Activate();
+                        _linkBox.Focus();
+                    }
+                };
+            }
+            _tray.ContextMenuStrip = menu;
         }
 
         protected override void OnFormClosing(FormClosingEventArgs e)
@@ -934,6 +1010,59 @@ namespace ArcticJoiner
             base.OnKeyDown(e);
         }
 
+        // Kills any running Roblox client so a fresh join does not stack instances.
+        private static void KillRunningRoblox()
+        {
+            try
+            {
+                foreach (Process p in Process.GetProcessesByName("RobloxPlayerBeta"))
+                {
+                    try { p.Kill(); } catch { }
+                }
+                foreach (Process p in Process.GetProcessesByName("RobloxPlayerLauncher"))
+                {
+                    try { p.Kill(); } catch { }
+                }
+                foreach (Process p in Process.GetProcessesByName("Froststrap"))
+                {
+                    try { p.Kill(); } catch { }
+                }
+            }
+            catch { }
+        }
+
+        private static string DetectFroststrap()
+        {
+            string localApp = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            string[] roots =
+            {
+                localApp,
+                Path.Combine(localApp, "Programs"),
+                Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+                Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+                Path.Combine(localApp, "Roblox"),
+                Path.Combine(localApp, "Programs", "Roblox")
+            };
+            foreach (string root in roots)
+            {
+                if (string.IsNullOrEmpty(root) || !Directory.Exists(root)) continue;
+                try
+                {
+                    foreach (string dir in Directory.GetDirectories(root))
+                    {
+                        string name = Path.GetFileName(dir);
+                        if (name.IndexOf("Froststrap", StringComparison.OrdinalIgnoreCase) >= 0)
+                        {
+                            string candidate = Path.Combine(dir, "Froststrap.exe");
+                            if (File.Exists(candidate)) return candidate;
+                        }
+                    }
+                }
+                catch { }
+            }
+            return null;
+        }
+
         private static string HistoryFile()
         {
             // Lives next to the exe, same as settings.
@@ -959,37 +1088,46 @@ namespace ArcticJoiner
             return result;
         }
 
+        private static string FetchGameName(string placeId)
+        {
+            try
+            {
+                using (var wc = new System.Net.WebClient())
+                {
+                    wc.Headers.Add("User-Agent", "ArcticJoiner");
+                    // place -> universe -> game name
+                    string universeJson = wc.DownloadString(
+                        "https://apis.roproxy.com/universes/v1/places/" + placeId + "/universe");
+                    var uniMatch = System.Text.RegularExpressions.Regex.Match(universeJson, "\"universeId\"\\s*:\\s*(\\d+)");
+                    if (!uniMatch.Success) return null;
+                    string json = wc.DownloadString(
+                        "https://games.roproxy.com/v1/games?universeIds=" + uniMatch.Groups[1].Value);
+                    var nameMatch = System.Text.RegularExpressions.Regex.Match(json, "\"name\"\\s*:\\s*\"([^\"]+)\"");
+                    return nameMatch.Success ? nameMatch.Groups[1].Value : null;
+                }
+            }
+            catch { return null; }
+        }
+
         private void FetchGameNameAndToast(string deepLink)
         {
             try
             {
                 var match = System.Text.RegularExpressions.Regex.Match(deepLink, "placeId=(\\d+)");
                 if (!match.Success) return;
-                using (var wc = new System.Net.WebClient())
+                string name = FetchGameName(match.Groups[1].Value) ?? "the game";
+                SetStatusUi("Launched " + name + ".", false);
+                try
                 {
-                    wc.Headers.Add("User-Agent", "ArcticJoiner");
-                    // multiget-place-details needs auth now: place -> universe -> game.
-                    string universeJson = wc.DownloadString(
-                        "https://apis.roproxy.com/universes/v1/places/" + match.Groups[1].Value + "/universe");
-                    var uniMatch = System.Text.RegularExpressions.Regex.Match(universeJson, "\"universeId\"\\s*:\\s*(\\d+)");
-                    if (!uniMatch.Success) return;
-                    string json = wc.DownloadString(
-                        "https://games.roproxy.com/v1/games?universeIds=" + uniMatch.Groups[1].Value);
-                    var nameMatch = System.Text.RegularExpressions.Regex.Match(json, "\"name\"\\s*:\\s*\"([^\"]+)\"");
-                    string name = nameMatch.Success ? nameMatch.Groups[1].Value : "the game";
-                    SetStatusUi("Launched " + name + ".", false);
-                    try
+                    Invoke((MethodInvoker)delegate
                     {
-                        Invoke((MethodInvoker)delegate
+                        if (_tray != null)
                         {
-                            if (_tray != null)
-                            {
-                                _tray.ShowBalloonTip(2500, "Arctic Joiner", "Launched " + name + ".", ToolTipIcon.Info);
-                            }
-                        });
-                    }
-                    catch { }
+                            _tray.ShowBalloonTip(2500, "Arctic Joiner", "Launched " + name + ".", ToolTipIcon.Info);
+                        }
+                    });
                 }
+                catch { }
             }
             catch { }
         }
@@ -1008,8 +1146,46 @@ namespace ArcticJoiner
                 File.WriteAllLines(file, _history.ToArray());
             }
             catch { }
+            RenderHistoryItems();
+
+            // Resolve a readable game name in the background for this new entry.
+            var match = System.Text.RegularExpressions.Regex.Match(entry, "placeId=(\\d+)");
+            if (match.Success)
+            {
+                string placeId = match.Groups[1].Value;
+                string copy = entry;
+                System.Threading.Tasks.Task.Run((Action)(() =>
+                {
+                    string name = FetchGameName(placeId);
+                    if (name == null) return;
+                    try
+                    {
+                        Invoke((MethodInvoker)delegate
+                        {
+                            _historyNames[copy] = name;
+                            RenderHistoryItems();
+                            BuildTrayIcon();
+                        });
+                    }
+                    catch { }
+                }));
+            }
+        }
+
+        private System.Collections.Generic.Dictionary<string, string> _historyNames =
+            new System.Collections.Generic.Dictionary<string, string>();
+
+        private string HistoryDisplay(string entry)
+        {
+            string name;
+            if (_historyNames.TryGetValue(entry, out name)) return name;
+            return entry;
+        }
+
+        private void RenderHistoryItems()
+        {
             _linkBox.Items.Clear();
-            foreach (string item in _history) _linkBox.Items.Add(item);
+            foreach (string item in _history) _linkBox.Items.Add(HistoryDisplay(item));
         }
     }
 }
@@ -1159,7 +1335,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "2.1.1";
+        public const string Version = "2.2.0";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.
