@@ -85,6 +85,9 @@ build through `ArcticJoiner.csproj`.
 - **Pinned games:** click **Pin current** to save the game in the box for
   one-click joining later - no link needed. Pins show as buttons in the window
   and under **Pinned games** in the tray menu. Right-click a pin to remove it.
+- **Prev Server** shows what it will rejoin - the button shows the game name
+  and hovering gives the game and server ID. The tray menu has **Clear history**
+  to wipe the recent-join list.
 - **User sniping moved to the website:** open `/snipe` on the site, type a
   username or user ID, and it finds their exact public server and gives you a
   one-tap roblox:// join. (Removed from the desktop app to keep it lean.)

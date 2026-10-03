@@ -211,6 +211,7 @@ namespace ArcticJoiner
         private readonly List<PinnedGame> _pinned = new List<PinnedGame>();
         private FlowLayoutPanel _pinnedPanel;
         private Button _pinButton;
+        private ToolTip _prevTip;
         private NotifyIcon _tray;
         private System.Windows.Forms.Timer _updateTimer;
         private System.Windows.Forms.Timer _queueTimer;
@@ -289,7 +290,7 @@ namespace ArcticJoiner
             {
                 Text = "Join",
                 Location = new Point(16, 100),
-                Size = new Size(160, 34),
+                Size = new Size(120, 34),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left
             };
             _joinButton.Click += (s, e) => TryJoin(_linkBox.Text, closeAfter: false);
@@ -297,14 +298,28 @@ namespace ArcticJoiner
             _prevButton = new Button
             {
                 Text = "Prev Server",
-                Location = new Point(186, 103),
-                Size = new Size(100, 28),
+                Location = new Point(146, 103),
+                Size = new Size(150, 28),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left
             };
+            _prevTip = new ToolTip();
+            _prevTip.SetToolTip(_prevButton, "The server you joined most recently.");
             _prevButton.Click += (s, e) =>
             {
-                if (_history.Count > 0) TryJoin(_history[0], closeAfter: false);
+                if (_history.Count == 0)
+                {
+                    SetStatus("No previous server to rejoin yet - join a game first.", true);
+                    return;
+                }
+                string entry = _history[0];
+                string target = HistoryTargetLabel(entry);
+                SetStatus("Rejoining " + target + "...", false);
+                if (TryJoin(entry, closeAfter: false))
+                {
+                    SetStatus("Rejoined " + target + ".", false);
+                }
             };
+            UpdatePrevButton();
 
             _status = new Label
             {
@@ -371,8 +386,8 @@ namespace ArcticJoiner
             _openSettingsButton = new Button
             {
                 Text = "Froststrap settings",
-                Location = new Point(296, 103),
-                Size = new Size(150, 28),
+                Location = new Point(306, 103),
+                Size = new Size(140, 28),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left
             };
             _openSettingsButton.Click += (s, e) =>
@@ -384,8 +399,8 @@ namespace ArcticJoiner
             _pinButton = new Button
             {
                 Text = "Pin current",
-                Location = new Point(450, 103),
-                Size = new Size(154, 28),
+                Location = new Point(456, 103),
+                Size = new Size(148, 28),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left
             };
             _pinButton.Click += (s, e) => PinCurrent();
@@ -719,14 +734,14 @@ namespace ArcticJoiner
             return trimmed;
         }
 
-        public void TryJoin(string raw, bool closeAfter)
+        public bool TryJoin(string raw, bool closeAfter)
         {
             raw = ResolveHistoryEntry(raw);
             string deepLink = LinkParser.Parse(raw);
             if (deepLink == null)
             {
                 SetStatus("Could not read a place ID, server ID, launch data, or private code from that input.", true);
-                return;
+                return false;
             }
 
             try
@@ -770,10 +785,12 @@ namespace ArcticJoiner
                     _reallyExit = true; // actually exit, do not hide to the tray
                     Close();
                 }
+                return true;
             }
             catch (Exception ex)
             {
                 SetStatus("Launch failed: " + ex.Message + " (Is Froststrap installed?)", true);
+                return false;
             }
         }
 
@@ -950,7 +967,11 @@ namespace ArcticJoiner
                 string copy = entry;
                 menu.Items.Add(HistoryDisplay(copy), null, (s, e) => TryJoin(copy, closeAfter: false));
             }
-            if (_history.Count > 0) menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
+            if (_history.Count > 0)
+            {
+                menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
+                menu.Items.Add("Clear history", null, (s, e) => ClearHistory());
+            }
             menu.Items.Add("Open Arctic Joiner", null, (s, e) => { Show(); Activate(); });
             menu.Items.Add("Join from clipboard", null, (s, e) => OnHotkey());
             menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
@@ -1429,14 +1450,16 @@ namespace ArcticJoiner
                 var match = System.Text.RegularExpressions.Regex.Match(deepLink, "placeId=(\\d+)");
                 if (!match.Success) return;
                 string name = FetchGameName(match.Groups[1].Value) ?? "the game";
-                SetStatusUi("Launched " + name + ".", false);
+                string server = ServerIdFrom(deepLink);
+                string label = name + (server.Length > 0 ? " - server " + ShortId(server) : "");
+                SetStatusUi("Launched " + label + ".", false);
                 try
                 {
                     Invoke((MethodInvoker)delegate
                     {
                         if (_tray != null)
                         {
-                            _tray.ShowBalloonTip(2500, "Arctic Joiner", "Launched " + name + ".", ToolTipIcon.Info);
+                            _tray.ShowBalloonTip(2500, "Arctic Joiner", "Launched " + label + ".", ToolTipIcon.Info);
                         }
                     });
                 }
@@ -1499,6 +1522,75 @@ namespace ArcticJoiner
         {
             _linkBox.Items.Clear();
             foreach (string item in _history) _linkBox.Items.Add(HistoryDisplay(item));
+            UpdatePrevButton();
+        }
+
+        // ---- History helpers ----
+
+        private void ClearHistory()
+        {
+            _history.Clear();
+            _historyNames.Clear();
+            try { if (File.Exists(HistoryFile())) File.Delete(HistoryFile()); } catch { }
+            RenderHistoryItems();
+            BuildTrayIcon();
+            SetStatus("Recent history cleared.", false);
+        }
+
+        private string FriendlyName(string entry)
+        {
+            string name;
+            if (_historyNames.TryGetValue(entry, out name) && !string.IsNullOrWhiteSpace(name)) return name;
+            var m = System.Text.RegularExpressions.Regex.Match(entry ?? "", "placeId=(\\d+)");
+            if (m.Success) return "Place " + m.Groups[1].Value;
+            var c = System.Text.RegularExpressions.Regex.Match(entry ?? "", "code=([^&]+)");
+            if (c.Success) return "a private server";
+            return "the previous server";
+        }
+
+        private static string ServerIdFrom(string entry)
+        {
+            entry = entry ?? "";
+            var m = System.Text.RegularExpressions.Regex.Match(entry, "gameInstanceId=([^&]+)");
+            if (m.Success) return m.Groups[1].Value;
+            var c = System.Text.RegularExpressions.Regex.Match(entry, "code=([^&]+)");
+            if (c.Success) return c.Groups[1].Value;
+            return "";
+        }
+
+        private static string ShortId(string id)
+        {
+            id = id ?? "";
+            return id.Length <= 8 ? id : id.Substring(0, 8);
+        }
+
+        private static string TruncateText(string value, int max)
+        {
+            value = value ?? "";
+            if (value.Length <= max) return value;
+            if (max <= 3) return value.Substring(0, max);
+            return value.Substring(0, max - 3) + "...";
+        }
+
+        private string HistoryTargetLabel(string entry)
+        {
+            string name = FriendlyName(entry);
+            string server = ServerIdFrom(entry);
+            return server.Length > 0 ? name + " (server " + ShortId(server) + ")" : name;
+        }
+
+        private void UpdatePrevButton()
+        {
+            if (_prevButton == null) return;
+            if (_history.Count == 0)
+            {
+                _prevButton.Text = "Prev Server";
+                if (_prevTip != null) _prevTip.SetToolTip(_prevButton, "No previous server yet.");
+                return;
+            }
+            string entry = _history[0];
+            _prevButton.Text = "Prev: " + TruncateText(FriendlyName(entry), 12);
+            if (_prevTip != null) _prevTip.SetToolTip(_prevButton, "Rejoin: " + HistoryTargetLabel(entry));
         }
 
         // ---- Pinned games ----
@@ -1844,7 +1936,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "2.6.0";
+        public const string Version = "2.6.1";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.
