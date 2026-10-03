@@ -283,13 +283,26 @@ namespace FroststrapJoiner
                 Text = "Tip: if the box above is empty, the joiner opens the roblox:// link directly, so whatever app is registered for it (Froststrap, if you set it as default) launches.",
                 AutoSize = false,
                 Size = new Size(588, 60),
-                Location = new Point(0, 62),
+                Location = new Point(0, 92),
                 ForeColor = SystemColors.GrayText
+            };
+
+            var checkUpdateButton = new Button
+            {
+                Text = "Check for updates now",
+                Location = new Point(0, 56),
+                Size = new Size(150, 26)
+            };
+            checkUpdateButton.Click += (s, e) =>
+            {
+                SetStatus("Checking GitHub for updates...", false);
+                CheckForUpdatesAsync(true);
             };
 
             _settingsPanel.Controls.Add(pathLabel);
             _settingsPanel.Controls.Add(_froststrapPathBox);
             _settingsPanel.Controls.Add(_browseButton);
+            _settingsPanel.Controls.Add(checkUpdateButton);
             _settingsPanel.Controls.Add(hint);
 
             Controls.Add(pasteLabel);
@@ -376,16 +389,32 @@ namespace FroststrapJoiner
 
         private void CheckForUpdatesAsync()
         {
+            CheckForUpdatesAsync(false);
+        }
+
+        private void CheckForUpdatesAsync(bool verbose)
+        {
             System.Threading.Tasks.Task.Run((Action)(() =>
             {
                 string newer = null;
+                bool reachable = false;
                 try
                 {
                     string remote = Updater.DownloadText(Updater.VersionUrl).Trim();
+                    reachable = true;
                     if (remote.Length > 0 && Updater.IsNewer(remote, Updater.Version)) newer = remote;
                 }
                 catch { }
-                if (newer == null) return;
+                if (newer == null)
+                {
+                    if (verbose)
+                    {
+                        SetStatusUi(reachable
+                            ? "You are on the latest version (v" + Updater.Version + ")."
+                            : "Could not reach GitHub to check for updates.", !reachable);
+                    }
+                    return;
+                }
                 try
                 {
                     Invoke((MethodInvoker)delegate
@@ -608,6 +637,18 @@ namespace FroststrapJoiner
             "https://raw.githubusercontent.com/Arctic-Furry/Arctic-Furry.github.io/main/windows-app/";
         public const string VersionUrl = BaseUrl + "version.txt";
         public const string SourceUrl = BaseUrl + "FroststrapJoiner.cs";
+
+        static Updater()
+        {
+            // Old .NET Framework defaults may not negotiate TLS 1.2, which GitHub
+            // requires. Force it when possible (silently ignored if unsupported).
+            try
+            {
+                System.Net.ServicePointManager.SecurityProtocol =
+                    (System.Net.SecurityProtocolType)3072;
+            }
+            catch { }
+        }
 
         // Compares dotted versions, e.g. "1.2.0" > "1.1.9".
         public static bool IsNewer(string remote, string local)
