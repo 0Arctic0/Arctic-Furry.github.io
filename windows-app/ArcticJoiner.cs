@@ -1139,26 +1139,16 @@ namespace ArcticJoiner
         // Writes a ClientAppSettings.json with speed-focused Roblox fast flags.
         private void ApplyFastFlags()
         {
-            const string json = "{
-" +
-                "  "FFlagDebugSkipSplashScreen": "True",
-" +
-                "  "FFlagSkipBootstrapperUpdateCheck": "True",
-" +
-                "  "FLogNetwork": "7",
-" +
-                "  "FFlagDebugDisableTelemetryAppShellInit": "True",
-" +
-                "  "FFlagDebugDisableTelemetryV2Counter": "True",
-" +
-                "  "FFlagDebugDisableTelemetryV2Event": "True",
-" +
-                "  "FFlagDebugDisableTelemetryV2Stat": "True",
-" +
-                "  "FFlagDebugDisableTelemetryPoint": "True",
-" +
-                "  "FFlagRenderDebugCheckThreading2": "True"
-" +
+            const string json = "{\n" +
+                "  \"FFlagDebugSkipSplashScreen\": \"True\",\n" +
+                "  \"FFlagSkipBootstrapperUpdateCheck\": \"True\",\n" +
+                "  \"FLogNetwork\": \"7\",\n" +
+                "  \"FFlagDebugDisableTelemetryAppShellInit\": \"True\",\n" +
+                "  \"FFlagDebugDisableTelemetryV2Counter\": \"True\",\n" +
+                "  \"FFlagDebugDisableTelemetryV2Event\": \"True\",\n" +
+                "  \"FFlagDebugDisableTelemetryV2Stat\": \"True\",\n" +
+                "  \"FFlagDebugDisableTelemetryPoint\": \"True\",\n" +
+                "  \"FFlagRenderDebugCheckThreading2\": \"True\"\n" +
                 "}";
             string localApp = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
             string[] targets =
@@ -1520,7 +1510,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "2.4.2";
+        public const string Version = "2.4.3";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.
