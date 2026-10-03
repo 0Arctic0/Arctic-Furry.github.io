@@ -1,6 +1,6 @@
 // FroststrapJoiner - instant Roblox joiner for Froststrap users
 // Single-file C# WinForms app. No NuGet packages, no dependencies.
-// Build: see build.ps1 (uses the csc.exe that ships with Windows .NET Framework).
+// Build: see build.cmd (uses the csc.exe that ships with Windows .NET Framework).
 //
 // What it does:
 //   - Paste any Roblox join link (or pass it as a command-line argument)
@@ -594,6 +594,10 @@ namespace FroststrapJoiner
     {
         public const string Version = "1.1.0";
 
+        // A double-quote character, used when building compiler arguments
+        // without needing escaped quotes in the source.
+        public const char Q = '"';
+
         public const string BaseUrl =
             "https://raw.githubusercontent.com/Arctic-Furry/Arctic-Furry.github.io/main/windows-app/";
         public const string VersionUrl = BaseUrl + "version.txt";
@@ -674,8 +678,8 @@ namespace FroststrapJoiner
             var psi = new ProcessStartInfo
             {
                 FileName = csc,
-                Arguments = "/nologo /target:winexe /optimize+ \"/out:\"" + outPath + "\"\" " +
-                            "/r:System.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll \""" + csPath + "\"",
+                Arguments = "/nologo /target:winexe /optimize+ /out:" + Updater.Q + outPath + Updater.Q +
+                            " /r:System.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll " + Updater.Q + csPath + Updater.Q,
                 UseShellExecute = false,
                 CreateNoWindow = true,
                 RedirectStandardOutput = true,

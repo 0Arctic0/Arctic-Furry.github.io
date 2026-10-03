@@ -21,6 +21,22 @@ extra clicks.
 - `https://www.roblox.com/share?code=...&type=Server`
 - raw `roblox://` deep links (passed straight through)
 - a bare place ID (digits) or a bare share code
+- links pasted without the `https://` prefix
+
+## Install (fetches the latest from GitHub)
+
+Download **`install.cmd`** from this folder (on GitHub: open it, click the
+Raw/Download button) and **double-click it** — or run it from `cmd`.
+
+It downloads the latest source from GitHub, builds it with the compiler that
+ships with Windows, and installs it to:
+
+```
+%LOCALAPPDATA%\FroststrapJoiner\FroststrapJoiner.exe
+```
+
+Nothing else is needed — no installers, no admin rights, no downloads from
+anywhere except this GitHub repo.
 
 ## Auto-update from GitHub
 
@@ -33,33 +49,15 @@ The app **fetches updates from this GitHub repo automatically**:
 - Keep the exe somewhere writable (e.g. your Desktop or a folder in your user
   profile — the default install location is fine), not Program Files.
 
-To publish a new version, bump the `Version` constant in
-`FroststrapJoiner.cs` and `windows-app/version.txt`, and commit to `main`.
+To publish a new version, bump the `Version` constant in `FroststrapJoiner.cs`
+and `windows-app/version.txt`, and commit to `main`.
 
-## One-line install (fetches from GitHub)
+## Build from source (already downloaded)
 
-No clone needed — run this in PowerShell on any Windows PC:
-
-```
-powershell -ExecutionPolicy Bypass -Command "iwr https://raw.githubusercontent.com/Arctic-Furry/Arctic-Furry.github.io/main/windows-app/install.ps1 -UseBasicParsing | iex"
-```
-
-It downloads the latest app from this repo, builds it with the compiler that
-ships with Windows, and installs it to
-`%LOCALAPPDATA%\FroststrapJoiner\FroststrapJoiner.exe`.
-
-## Build
-
-Run PowerShell in this folder:
-
-```
-powershell -ExecutionPolicy Bypass -File .\build.ps1
-```
-
-This uses the C# compiler that already ships with Windows (`.NET Framework
-csc.exe`), so nothing needs to be installed. If you have the `dotnet` SDK, it
-builds through `FroststrapJoiner.csproj` instead. Either way you end up with
-`FroststrapJoiner.exe` in this folder.
+If you already have this folder on your PC, just double-click **`build.cmd`** —
+or run it from `cmd`. It builds `FroststrapJoiner.exe` right here using the
+compiler that ships with Windows. If you have the `dotnet` SDK, you can also
+build through `FroststrapJoiner.csproj`.
 
 ## Use
 
@@ -74,11 +72,6 @@ builds through `FroststrapJoiner.csproj` instead. Either way you end up with
 ## Optional: make it the roblox:// handler
 
 Froststrap itself normally owns the `roblox://` protocol. If you'd rather have
-**every** roblox link on your PC open through the joiner, run:
-
-```
-powershell -ExecutionPolicy Bypass -File .\register-protocol.ps1
-```
-
-It re-registers the `roblox://` protocol (for your user only) to open
-`FroststrapJoiner.exe "%1"`.
+**every** roblox link on your PC open through the joiner, run
+**`register-protocol.cmd`**. It re-registers the `roblox://` protocol (for your
+user only) to open `FroststrapJoiner.exe "%1"`.
