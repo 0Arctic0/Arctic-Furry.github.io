@@ -62,10 +62,24 @@ namespace ArcticJoiner
         {
             get
             {
-                string dir = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                    "ArcticJoiner");
-                return Path.Combine(dir, "settings.txt");
+                // Everything lives next to the exe so the app folder is self-contained.
+                string dir = Path.GetDirectoryName(Application.ExecutablePath);
+                string file = Path.Combine(dir, "settings.txt");
+                if (!File.Exists(file))
+                {
+                    // One-time migration from the old %AppData% location.
+                    string old = Path.Combine(
+                        Path.Combine(
+                            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                            "ArcticJoiner"),
+                        "settings.txt");
+                    try
+                    {
+                        if (File.Exists(old)) File.Copy(old, file, false);
+                    }
+                    catch { }
+                }
+                return file;
             }
         }
 
@@ -493,14 +507,14 @@ namespace ArcticJoiner
             {
                 try
                 {
-                    string dir = Path.Combine(Path.GetTempPath(), "ArcticJoinerUpdate");
+                    string exeDir = Path.GetDirectoryName(Application.ExecutablePath);
+                    string dir = Path.Combine(exeDir, "update");
                     Directory.CreateDirectory(dir);
                     string cs = Path.Combine(dir, "ArcticJoiner.cs");
                     Updater.DownloadFile(Updater.SourceUrl, cs);
                     string ico = Path.Combine(dir, "icon.ico");
                     try { Updater.DownloadFile(Updater.IconUrl, ico); } catch { ico = null; }
 
-                    string exeDir = Path.GetDirectoryName(Application.ExecutablePath);
                     string newExe = Path.Combine(exeDir, "ArcticJoiner.new.exe");
                     try { if (File.Exists(newExe)) File.Delete(newExe); } catch { }
 
@@ -512,6 +526,9 @@ namespace ArcticJoiner
                     try { if (File.Exists(old)) File.Delete(old); } catch { }
                     File.Move(current, old);
                     File.Move(newExe, current);
+
+                    // Update leftovers stay inside the app folder, but do not pile up.
+                    try { Directory.Delete(dir, true); } catch { }
 
                     SetStatusUi("Updated to the latest version. Restarting...", false);
 
@@ -712,11 +729,8 @@ namespace ArcticJoiner
 
         private static string HistoryFile()
         {
-            return Path.Combine(
-                Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                    "ArcticJoiner"),
-                "history.txt");
+            // Lives next to the exe, same as settings.
+            return Path.Combine(Path.GetDirectoryName(Application.ExecutablePath), "history.txt");
         }
 
         private List<string> LoadHistory()
@@ -903,7 +917,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "1.5.5";
+        public const string Version = "1.6.0";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.
