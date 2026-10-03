@@ -1,17 +1,23 @@
 @echo off
 rem Builds FroststrapJoiner.exe from this folder using the compiler that ships with Windows.
+rem Just double-click it, or run it from cmd.
 setlocal
-set "CSC="
-for /f "delims=" %%F in ('dir /b /on "%WINDIR%\Microsoft.NET\Framework64\v4.0.*\csc.exe" 2^>nul') do set "CSC=%WINDIR%\Microsoft.NET\Framework64\%%F"
-if not defined CSC for /f "delims=" %%F in ('dir /b /on "%WINDIR%\Microsoft.NET\Framework\v4.0.*\csc.exe" 2^>nul') do set "CSC=%WINDIR%\Microsoft.NET\Framework\%%F"
-if not defined CSC (
-  echo No .NET Framework C# compiler found. Install .NET Framework 4.x or the dotnet SDK.
+set "CSC=%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
+if not exist "%CSC%" set "CSC=%WINDIR%\Microsoft.NET\Framework\v4.0.30319\csc.exe"
+if not exist "%CSC%" (
+  echo ERROR: no .NET Framework C# compiler found. Install .NET Framework 4.x or the dotnet SDK.
+  pause
   exit /b 1
 )
+echo Building with %CSC% ...
 "%CSC%" /nologo /target:winexe /optimize+ "/out:%~dp0FroststrapJoiner.exe" /r:System.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll "%~dp0FroststrapJoiner.cs"
-if exist "%~dp0FroststrapJoiner.exe" (
-  echo Built: %~dp0FroststrapJoiner.exe
-) else (
-  echo Build did not produce FroststrapJoiner.exe
+if not exist "%~dp0FroststrapJoiner.exe" (
+  echo ERROR: build failed - see the messages above.
+  pause
   exit /b 1
 )
+echo.
+echo Built: %~dp0FroststrapJoiner.exe
+echo.
+echo You can close this window now.
+pause
