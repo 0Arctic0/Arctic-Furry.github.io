@@ -1,5 +1,15 @@
 [
   {
+    "date": "2026-07-03",
+    "title": "Server browser, game info, and app quality upgrades",
+    "items": [
+      "Added /servers: paste a game link to see every public server with player counts and one-tap join; auto-refreshes every 30 seconds.",
+      "Invite pages now show the real game name instead of just the place ID.",
+      "The user sniper gained a Keep watching mode that rescans every 30 seconds until the target is found.",
+      "Windows app v2.1.0: single instance with link forwarding, plus a toast notification showing the launched game's name."
+    ]
+  },
+  {
     "date": "2026-07-02",
     "title": "User Sniper page",
     "items": [

@@ -37,6 +37,39 @@ namespace ArcticJoiner
             var form = new JoinerForm(settings);
 
             // If a link was passed on the command line, join instantly.
+            // Single instance: a second launch forwards its link to the running
+            // instance through a queue file and exits immediately.
+            bool createdNew;
+            var mutex = new System.Threading.Mutex(true, "ArcticJoinerSingleInstance", out createdNew);
+            if (!createdNew)
+            {
+                if (args != null && args.Length > 0)
+                {
+                    string joined = string.Join(" ", args);
+                    if (!string.IsNullOrWhiteSpace(joined))
+                    {
+                        try
+                        {
+                            string exeDir = Path.GetDirectoryName(Application.ExecutablePath);
+                            File.WriteAllText(Path.Combine(exeDir, "incoming-link.txt"), joined);
+                        }
+                        catch
+                        {
+                            try
+                            {
+                                string dir = Path.Combine(
+                                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                                    "ArcticJoiner");
+                                Directory.CreateDirectory(dir);
+                                File.WriteAllText(Path.Combine(dir, "incoming-link.txt"), joined);
+                            }
+                            catch { }
+                        }
+                    }
+                }
+                return;
+            }
+
             if (args != null && args.Length > 0)
             {
                 string joined = string.Join(" ", args);
@@ -154,6 +187,7 @@ namespace ArcticJoiner
         private readonly List<string> _history = new List<string>();
         private NotifyIcon _tray;
         private System.Windows.Forms.Timer _updateTimer;
+        private System.Windows.Forms.Timer _queueTimer;
         private bool _reallyExit;
         private bool _captureHotkey;
         private int _captureTarget = 1; // 1 = join hotkey, 2 = extract keybind
@@ -428,6 +462,45 @@ namespace ArcticJoiner
             KeyPreview = true;
             BuildTrayIcon();
             ApplyHotkey();
+
+            // Poll the incoming-link queue so a second instance's link is
+            // picked up by this one.
+            _queueTimer = new System.Windows.Forms.Timer { Interval = 1000 };
+            _queueTimer.Tick += (s, e) => ProcessIncomingLink();
+            _queueTimer.Start();
+        }
+
+        private void ProcessIncomingLink()
+        {
+            foreach (string path in QueueFilePaths())
+            {
+                try
+                {
+                    if (!File.Exists(path)) continue;
+                    string link = File.ReadAllText(path).Trim();
+                    try { File.Delete(path); } catch { }
+                    if (link.Length > 0)
+                    {
+                        Show();
+                        Activate();
+                        TryJoin(link, closeAfter: false);
+                    }
+                }
+                catch { }
+            }
+        }
+
+        private static string[] QueueFilePaths()
+        {
+            return new string[]
+            {
+                Path.Combine(Path.GetDirectoryName(Application.ExecutablePath), "incoming-link.txt"),
+                Path.Combine(
+                    Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                        "ArcticJoiner"),
+                    "incoming-link.txt")
+            };
         }
 
         private void LinkBoxKeyDown(object sender, KeyEventArgs e)
@@ -468,6 +541,9 @@ namespace ArcticJoiner
                 }
 
                 RecordHistory(raw);
+
+                // Fetch the game's name and show a toast so you know what launched.
+                System.Threading.Tasks.Task.Run((Action)(() => FetchGameNameAndToast(deepLink)));
 
                 // Clear the box so the UI is ready for the next link right away.
                 _lastAutoJoined = "";
@@ -664,6 +740,7 @@ namespace ArcticJoiner
             }
             UnregisterHotkey();
             if (_updateTimer != null) _updateTimer.Stop();
+            if (_queueTimer != null) _queueTimer.Stop();
             if (_tray != null) _tray.Dispose();
             base.OnFormClosing(e);
         }
@@ -882,6 +959,36 @@ namespace ArcticJoiner
             return result;
         }
 
+        private void FetchGameNameAndToast(string deepLink)
+        {
+            try
+            {
+                var match = System.Text.RegularExpressions.Regex.Match(deepLink, "placeId=(\\d+)");
+                if (!match.Success) return;
+                using (var wc = new System.Net.WebClient())
+                {
+                    wc.Headers.Add("User-Agent", "ArcticJoiner");
+                    string json = wc.DownloadString(
+                        "https://games.roproxy.com/v1/games/multiget-place-details?placeIds=" + match.Groups[1].Value);
+                    var nameMatch = System.Text.RegularExpressions.Regex.Match(json, "\"Name\"\\s*:\\s*\"([^\"]+)\"");
+                    string name = nameMatch.Success ? nameMatch.Groups[1].Value : "the game";
+                    SetStatusUi("Launched " + name + ".", false);
+                    try
+                    {
+                        Invoke((MethodInvoker)delegate
+                        {
+                            if (_tray != null)
+                            {
+                                _tray.ShowBalloonTip(2500, "Arctic Joiner", "Launched " + name + ".", ToolTipIcon.Info);
+                            }
+                        });
+                    }
+                    catch { }
+                }
+            }
+            catch { }
+        }
+
         private void RecordHistory(string raw)
         {
             string entry = (raw ?? "").Trim();
@@ -1047,7 +1154,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "2.0.0";
+        public const string Version = "2.1.0";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.

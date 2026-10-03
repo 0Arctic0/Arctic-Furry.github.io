@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Server Browser</title>
+  <link rel="stylesheet" href="../styles.css" />
+</head>
+<body data-page="servers">
+  <main class="page">
+    <section class="card card-wide">
+      <h1>Server Browser</h1>
+      <p>Paste a <strong>Roblox game link</strong> to see every public server with its player count, and join the one you want directly.</p>
+
+      <div class="field">
+        <label for="server-game">Roblox game link or place ID</label>
+        <input id="server-game" placeholder="https://www.roblox.com/games/1962086868/Tower-of-Hell" />
+      </div>
+
+      <div class="buttons">
+        <button class="button" id="server-load">Browse Servers</button>
+        <button class="button secondary" id="server-refresh">Refresh</button>
+        <a class="button secondary" href="../menu/">Open Menu</a>
+      </div>
+
+      <div class="stack" id="server-game-info" style="margin-top: 12px;"></div>
+      <p class="small status" id="server-status">Waiting for a game link...</p>
+      <div class="stack" id="server-list"></div>
+    </section>
+  </main>
+  <script>
+  (function () {
+    var gameBox = document.getElementById('server-game');
+    var loadBtn = document.getElementById('server-load');
+    var refreshBtn = document.getElementById('server-refresh');
+    var statusEl = document.getElementById('server-status');
+    var listEl = document.getElementById('server-list');
+    var infoEl = document.getElementById('server-game-info');
+    var currentPlaceId = null;
+    var autoTimer = null;
+
+    function setStatus(text, error) {
+      statusEl.textContent = text;
+      statusEl.className = 'small status' + (error ? ' error' : '');
+    }
+
+    function escapeHtml(value) {
+      return String(value || '').replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    }
+
+    function parseGameLink(value) {
+      var text = String(value || '').trim();
+      if (!text) return null;
+      if (/^\d+$/.test(text)) return parseInt(text, 10);
+      var m = text.match(/\/games\/(\d+)/i) || text.match(/placeId=(\d+)/i);
+      if (m) return parseInt(m[1], 10);
+      return null;
+    }
+
+    function getJson(url) {
+      return fetch(url).then(function (r) { return r.json(); });
+    }
+
+    function loadGame() {
+      var placeId = parseGameLink(gameBox.value);
+      if (!placeId) {
+        setStatus('That does not look like a Roblox game link or place ID.', true);
+        return;
+      }
+      currentPlaceId = placeId;
+      loadBtn.disabled = true;
+      setStatus('Loading game info...');
+      getJson('https://games.roproxy.com/v1/games/multiget-place-details?placeIds=' + placeId)
+        .then(function (games) {
+          if (!games || !games.length) {
+            throw new Error('Could not load that game.');
+          }
+          var g = games[0];
+          infoEl.innerHTML =
+            '<div style="display:flex; align-items:center; gap:12px;">' +
+            '<img width="64" height="64" style="border-radius:8px;" alt="game icon" src="https://thumbnails.roproxy.com/v1/places/gameicons?placeIds=' +
+            placeId + '&size=150x150&format=Png&isCircular=false" />' +
+            '<div><strong>' + escapeHtml(g.Name) + '</strong>' +
+            '<div class="small">' + (g.playing || 0).toLocaleString() + ' playing right now - place ' + placeId + '</div></div></div>';
+          loadServers();
+        })
+        .catch(function (err) { setStatus('Failed: ' + err.message, true); })
+        .then(function () { loadBtn.disabled = false; });
+    }
+
+    function loadServers() {
+      if (!currentPlaceId) return;
+      setStatus('Loading servers...');
+      listEl.textContent = '';
+      var cursor = null;
+      var all = [];
+
+      function page() {
+        var url = 'https://games.roproxy.com/v1/games/' + currentPlaceId +
+          '/servers/Public?limit=100' + (cursor ? '&cursor=' + encodeURIComponent(cursor) : '');
+        return getJson(url).then(function (root) {
+          (root.data || []).forEach(function (s) { all.push(s); });
+          if (root.nextPageCursor) {
+            cursor = root.nextPageCursor;
+            return page();
+          }
+          render(all);
+        });
+      }
+
+      page().catch(function (err) { setStatus('Failed: ' + err.message, true); });
+    }
+
+    function render(servers) {
+      servers.sort(function (a, b) { return (b.playing || 0) - (a.playing || 0); });
+      listEl.textContent = '';
+      if (!servers.length) {
+        setStatus('No public servers right now.', true);
+        return;
+      }
+      servers.forEach(function (s) {
+        var row = document.createElement('div');
+        row.className = 'field';
+        var pct = s.maxPlayers ? Math.round((s.playing / s.maxPlayers) * 100) : 0;
+        row.innerHTML =
+          '<div style="display:flex; align-items:center; gap:12px; justify-content:space-between;">' +
+          '<div><strong>' + s.playing + ' / ' + s.maxPlayers + ' players</strong>' +
+          '<div class="small">' + pct + '% full - server ' + escapeHtml(String(s.id)) + '</div></div>' +
+          '<div class="buttons" style="margin:0;">' +
+          '<button class="button" data-server-id="' + escapeHtml(String(s.id)) + '">Join</button>' +
+          '</div></div>';
+        listEl.appendChild(row);
+      });
+      setStatus('Showing ' + servers.length + ' public servers. Sorted by most players. Auto-refreshes every 30 seconds.');
+    }
+
+    listEl.addEventListener('click', function (e) {
+      var btn = e.target && e.target.closest ? e.target.closest('[data-server-id]') : null;
+      if (!btn || !currentPlaceId) return;
+      window.location.href = 'roblox://placeId=' + currentPlaceId + '&gameInstanceId=' + btn.getAttribute('data-server-id');
+    });
+
+    loadBtn.addEventListener('click', loadGame);
+    refreshBtn.addEventListener('click', function () { if (currentPlaceId) loadServers(); });
+    gameBox.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') loadGame();
+    });
+
+    // Auto-refresh the server list every 30 seconds while a game is loaded.
+    autoTimer = setInterval(function () {
+      if (currentPlaceId && !loadBtn.disabled) loadServers();
+    }, 30000);
+  })();
+  </script>
+</body>
+</html>

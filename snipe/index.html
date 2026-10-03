@@ -24,6 +24,10 @@
 
       <div class="buttons">
         <button class="button" id="snipe-start">Snipe</button>
+        <label class="auto-join-box" style="margin: 0;">
+          <input type="checkbox" id="snipe-watch" />
+          <span class="auto-join-label">Keep watching</span>
+        </label>
         <a class="button secondary" href="../menu/">Open Menu</a>
       </div>
 
@@ -53,6 +57,11 @@
     var joinBtn = document.getElementById('snipe-join');
     var copyBtn = document.getElementById('snipe-copy');
     var currentDeepLink = '';
+    var watchTimer = null;
+
+    function stopWatch() {
+      if (watchTimer) { clearTimeout(watchTimer); watchTimer = null; }
+    }
 
     function setResult(text) { resultBox.textContent = text; }
 
@@ -145,7 +154,13 @@
           });
         })
         .then(function (found) {
-          if (!found) return;
+          if (!found) {
+            var watchBox = document.getElementById('snipe-watch');
+            if (watchBox && watchBox.checked) {
+              setResult('Not found yet - watching and rescanning every 30 seconds. Uncheck Keep watching to stop.');
+              stopWatch();
+              watchTimer = setTimeout(function () { if (watchBox.checked) startSnipe(); }, 30000);
+            }\n            return;\n          }\n          stopWatch();
           currentDeepLink = 'roblox://placeId=' + found.placeId + '&gameInstanceId=' + found.serverId;
           setResult('Found ' + user.name + '! Server: ' + found.serverId);
           joinRow.classList.remove('hidden');

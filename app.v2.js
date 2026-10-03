@@ -374,6 +374,23 @@
     if (placeValue) {
       placeValue.textContent = placeId;
     }
+    if (placeId && mode !== 'private') {
+      // Fetch the game's name + icon so the invite page shows what you are joining.
+      fetch('https://games.roproxy.com/v1/games/multiget-place-details?placeIds=' + placeId)
+        .then(function (r) { return r.json(); })
+        .then(function (games) {
+          if (!games || !games.length) return;
+          var game = games[0];
+          if (placeLabel) placeLabel.textContent = game.Name || 'Place ID';
+          if (description) {
+            description.textContent = 'Joining ' + (game.Name || 'this place') +
+              '. Tap the button below to open Roblox for this place' +
+              (launchData || instanceId ? ' with its exact details' : '') +
+              '. If Roblox does not launch, use the fallback web button.';
+          }
+        })
+        .catch(function () {});
+    }
     if (openWeb) openWeb.href = webLink;
     if (description) {
       description.textContent = mode === 'private'
