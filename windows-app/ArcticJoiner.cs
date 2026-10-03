@@ -1136,20 +1136,68 @@ namespace ArcticJoiner
             catch { }
         }
 
-        // Writes a ClientAppSettings.json with speed-focused Roblox fast flags.
+        // Speed-focused flags, merged INTO any existing config (never overwrites user settings).
+        private static readonly string[] SpeedFlagKeys = new string[]
+        {
+            "FFlagDebugSkipSplashScreen",
+            "FFlagSkipBootstrapperUpdateCheck",
+            "FLogNetwork",
+            "FFlagDebugDisableTelemetryAppShellInit",
+            "FFlagDebugDisableTelemetryV2Counter",
+            "FFlagDebugDisableTelemetryV2Event",
+            "FFlagDebugDisableTelemetryV2Stat",
+            "FFlagDebugDisableTelemetryPoint",
+            "FFlagRenderDebugCheckThreading2"
+        };
+
+        private static System.Collections.Generic.Dictionary<string, string> ReadFlagsFile(string path)
+        {
+            var result = new System.Collections.Generic.Dictionary<string, string>();
+            try
+            {
+                if (!File.Exists(path)) return result;
+                foreach (string line in File.ReadAllLines(path))
+                {
+                    string t = line.Trim().TrimEnd(',');
+                    int colon = t.IndexOf(':');
+                    if (colon < 2) continue;
+                    string key = t.Substring(0, colon).Trim().Trim('"');
+                    string val = t.Substring(colon + 1).Trim().Trim('"');
+                    if (key.Length > 0) result[key] = val;
+                }
+            }
+            catch { }
+            return result;
+        }
+
+        private static string BuildFlagsJson(System.Collections.Generic.Dictionary<string, string> flags)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("{");
+            int i = 0;
+            foreach (System.Collections.Generic.KeyValuePair<string, string> kv in flags)
+            {
+                if (i++ > 0) sb.AppendLine(",");
+                sb.Append("  "").Append(kv.Key).Append("": "").Append(kv.Value).Append(""");
+            }
+            sb.AppendLine();
+            sb.Append("}");
+            return sb.ToString();
+        }
+
         private void ApplyFastFlags()
         {
-            const string json = "{\n" +
-                "  \"FFlagDebugSkipSplashScreen\": \"True\",\n" +
-                "  \"FFlagSkipBootstrapperUpdateCheck\": \"True\",\n" +
-                "  \"FLogNetwork\": \"7\",\n" +
-                "  \"FFlagDebugDisableTelemetryAppShellInit\": \"True\",\n" +
-                "  \"FFlagDebugDisableTelemetryV2Counter\": \"True\",\n" +
-                "  \"FFlagDebugDisableTelemetryV2Event\": \"True\",\n" +
-                "  \"FFlagDebugDisableTelemetryV2Stat\": \"True\",\n" +
-                "  \"FFlagDebugDisableTelemetryPoint\": \"True\",\n" +
-                "  \"FFlagRenderDebugCheckThreading2\": \"True\"\n" +
-                "}";
+            var speed = new System.Collections.Generic.Dictionary<string, string>();
+            speed["FFlagDebugSkipSplashScreen"] = "True";
+            speed["FFlagSkipBootstrapperUpdateCheck"] = "True";
+            speed["FLogNetwork"] = "7";
+            speed["FFlagDebugDisableTelemetryAppShellInit"] = "True";
+            speed["FFlagDebugDisableTelemetryV2Counter"] = "True";
+            speed["FFlagDebugDisableTelemetryV2Event"] = "True";
+            speed["FFlagDebugDisableTelemetryV2Stat"] = "True";
+            speed["FFlagDebugDisableTelemetryPoint"] = "True";
+            speed["FFlagRenderDebugCheckThreading2"] = "True";
+
             string localApp = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
             string[] targets =
             {
@@ -1162,18 +1210,23 @@ namespace ArcticJoiner
                 try
                 {
                     string dir = Path.GetDirectoryName(file);
-                    if (!Directory.Exists(dir)) continue; // only write where the folder exists
-                    File.WriteAllText(file, json);
+                    if (!Directory.Exists(dir)) continue;
+                    var flags = ReadFlagsFile(file);
+                    foreach (System.Collections.Generic.KeyValuePair<string, string> kv in speed)
+                    {
+                        flags[kv.Key] = kv.Value;
+                    }
+                    File.WriteAllText(file, BuildFlagsJson(flags));
                     written++;
                 }
                 catch { }
             }
             SetStatus(written > 0
-                ? "Fast flags applied to " + written + " config file(s). Skip splash, lower preload, no telemetry."
+                ? "Fast flags applied (merged with your existing settings)."
                 : "No Froststrap/Roblox config folder found - install Froststrap first, then try again.", written > 0);
         }
 
-        // Removes the fast-flags config so Roblox launches with default settings again.
+        // Removes only the speed flags I added, keeping any other user flags.
         private void RevertFastFlags()
         {
             string localApp = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
@@ -1187,17 +1240,25 @@ namespace ArcticJoiner
             {
                 try
                 {
-                    if (File.Exists(file))
+                    var flags = ReadFlagsFile(file);
+                    if (flags.Count == 0) continue;
+                    bool changed = false;
+                    foreach (string key in SpeedFlagKeys)
                     {
-                        File.Delete(file);
+                        if (flags.Remove(key)) changed = true;
+                    }
+                    if (changed)
+                    {
+                        if (flags.Count > 0) File.WriteAllText(file, BuildFlagsJson(flags));
+                        else File.Delete(file);
                         removed++;
                     }
                 }
                 catch { }
             }
             SetStatus(removed > 0
-                ? "Fast flags reverted - removed " + removed + " config file(s). Default settings restored."
-                : "No fast-flags config found to remove.", removed > 0);
+                ? "Speed flags reverted - your other settings (like CSG detail distances) are untouched."
+                : "No speed flags found to remove.", removed > 0);
         }
 
         private static string DetectFroststrap()
@@ -1510,7 +1571,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "2.4.3";
+        public const string Version = "2.4.4";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.
