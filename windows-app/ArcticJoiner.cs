@@ -358,6 +358,9 @@ namespace ArcticJoiner
             _changeHotkeyButton.Click += (s, e) =>
             {
                 _captureHotkey = true;
+                // Unregister the current global hotkey first, otherwise pressing
+                // the new key ALSO fires the old hotkey and joins from the clipboard.
+                UnregisterHotkey();
                 // Pull focus away from the paste box so nothing can be typed or
                 // pasted into it while the next keystroke is being captured.
                 ActiveControl = _changeHotkeyButton;
@@ -681,6 +684,7 @@ namespace ArcticJoiner
 
         private void OnHotkey()
         {
+            if (_captureHotkey) return; // never join while picking a new hotkey
             string text = null;
             for (int attempt = 0; attempt < 3 && text == null; attempt++)
             {
@@ -714,6 +718,7 @@ namespace ArcticJoiner
                 if (e.KeyCode == Keys.Escape)
                 {
                     _captureHotkey = false;
+                    ApplyHotkey(); // re-register the old hotkey
                     SetStatus("Hotkey change cancelled - still set to " + HotkeyDescription() + ".", false);
                     return;
                 }
@@ -926,7 +931,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "1.6.1";
+        public const string Version = "1.6.2";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.
