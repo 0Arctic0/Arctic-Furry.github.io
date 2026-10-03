@@ -10,17 +10,24 @@
   <main class="page">
     <section class="card">
       <h1>User Sniper</h1>
-      <p>Type a <strong>username or user ID</strong> and the sniper checks what game they are playing, scans that game's public servers, finds their exact server, and gives you a one-tap join.</p>
+      <p>Type a <strong>username or user ID</strong>. The sniper finds their exact public server and gives you a one-tap join.</p>
 
       <div class="field">
         <label for="snipe-user">Username or User ID</label>
         <input id="snipe-user" placeholder="e.g. builderman or 261" />
       </div>
 
+      <div class="field">
+        <label for="snipe-game">Roblox game link <span class="small">(optional but recommended - skips the unreliable presence check and scans this game directly)</span></label>
+        <input id="snipe-game" placeholder="https://www.roblox.com/games/1962086868/Tower-of-Hell" />
+      </div>
+
       <div class="buttons">
         <button class="button" id="snipe-start">Snipe</button>
         <a class="button secondary" href="../menu/">Open Menu</a>
       </div>
+
+      <div class="stack" id="snipe-identity" style="margin-top: 12px;"></div>
 
       <div class="field">
         <label>Result</label>
@@ -32,21 +39,27 @@
         <button class="button secondary" id="snipe-copy">Copy Deep Link</button>
       </div>
 
-      <p class="small">Note: Roblox hides precise game presence for many accounts, so the presence check may show generic "Website" states for some users. The server scan itself works for anyone whose presence is visible.</p>
+      <p class="small">How it works: with a game link it scans that game's public servers and matches the target's avatar per server - this is fully accurate and needs no login. Without a game link it first tries Roblox's presence API, which is unreliable for anonymous requests (Roblox's own limitation).</p>
     </section>
   </main>
   <script>
   (function () {
     var userBox = document.getElementById('snipe-user');
+    var gameBox = document.getElementById('snipe-game');
     var startBtn = document.getElementById('snipe-start');
+    var identityBox = document.getElementById('snipe-identity');
     var resultBox = document.getElementById('snipe-result');
     var joinRow = document.getElementById('snipe-join-row');
     var joinBtn = document.getElementById('snipe-join');
     var copyBtn = document.getElementById('snipe-copy');
     var currentDeepLink = '';
 
-    function setResult(text) {
-      resultBox.textContent = text;
+    function setResult(text) { resultBox.textContent = text; }
+
+    function escapeHtml(value) {
+      return String(value || '').replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
     }
 
     function postJson(url, body) {
@@ -61,6 +74,29 @@
       return fetch(url).then(function (r) { return r.json(); });
     }
 
+    function parseGameLink(value) {
+      var text = String(value || '').trim();
+      if (!text) return null;
+      if (/^\d+$/.test(text)) return parseInt(text, 10);
+      var m = text.match(/\/games\/(\d+)/i) || text.match(/placeId=(\d+)/i);
+      if (m) return parseInt(m[1], 10);
+      try {
+        var u = new URL(text);
+        m = u.pathname.match(/\/games\/(\d+)/i);
+        if (m) return parseInt(m[1], 10);
+      } catch (e) {}
+      return null;
+    }
+
+    function showIdentity(user) {
+      identityBox.innerHTML =
+        '<div style="display:flex; align-items:center; gap:12px;">' +
+        '<img width="64" height="64" style="border-radius:8px;" alt="avatar" src="https://thumbnails.roproxy.com/v1/users/avatar-headshot?userIds=' +
+        user.id + '&size=150x150&format=Png&isCircular=false" />' +
+        '<div><strong>' + escapeHtml(user.displayName || user.name) + '</strong>' +
+        '<div class="small">@' + escapeHtml(user.name) + ' - ID ' + user.id + '</div></div></div>';
+    }
+
     function startSnipe() {
       var who = (userBox.value || '').trim();
       if (!who) return;
@@ -69,12 +105,14 @@
       currentDeepLink = '';
       setResult('Looking up the user...');
 
-      var userId;
-      var displayName = who;
+      var user = null;
+      var placeId = parseGameLink(gameBox.value);
 
       Promise.resolve()
         .then(function () {
-          if (/^\d+$/.test(who)) { userId = parseInt(who, 10); return; }
+          if (/^\d+$/.test(who)) {
+            return getJson('https://users.roproxy.com/v1/users/' + parseInt(who, 10));
+          }
           return postJson('https://users.roproxy.com/v1/usernames/users', {
             usernames: [who],
             excludeBannedUsers: false
@@ -82,38 +120,34 @@
             if (!data.data || !data.data.length) {
               throw new Error('No Roblox user with that name was found.');
             }
-            userId = data.data[0].id;
-            displayName = data.data[0].name;
+            return getJson('https://users.roproxy.com/v1/users/' + data.data[0].id);
           });
         })
-        .then(function () {
-          setResult('Checking what ' + displayName + ' is playing...');
-          return postJson('https://presence.roproxy.com/v1/presence/users', {
-            userIds: [userId]
-          });
-        })
-        .then(function (presence) {
-          var p = presence.userPresences && presence.userPresences[0];
-          if (!p) throw new Error('Could not read that user\'s presence.');
-          if (p.userPresenceType !== 2) {
-            var why = p.userPresenceType === 0 ? ' is offline right now.'
-              : p.userPresenceType === 1 ? ' is online but not in a game.'
-              : p.userPresenceType === 3 ? ' is in Roblox Studio.'
-              : ' has their presence hidden - sniping is not possible.';
-            throw new Error(displayName + why);
+        .then(function (profile) {
+          user = profile;
+          showIdentity(user);
+          if (placeId) {
+            setResult('Scanning servers of place ' + placeId + ' for ' + user.name + '...');
+            return scanServers(placeId, user.id);
           }
-          var placeId = p.placeId;
-          var gameName = p.lastLocation || 'the game';
-          setResult('Scanning ' + gameName + ' servers for ' + displayName + '...');
-          return scanServers(placeId, userId, displayName);
+          setResult('Checking what ' + user.name + ' is playing (anonymous presence - may be inaccurate)...');
+          return postJson('https://presence.roproxy.com/v1/presence/users', {
+            userIds: [user.id]
+          }).then(function (presence) {
+            var p = presence.userPresences && presence.userPresences[0];
+            if (!p || p.userPresenceType !== 2) {
+              setResult('Presence says ' + user.name + ' is not visibly in a game right now. Roblox limits anonymous presence data - paste the game link above and Snipe again to scan that game directly.');
+              return null;
+            }
+            var gameName = p.lastLocation || 'the game';
+            setResult('Scanning ' + gameName + ' servers for ' + user.name + '...');
+            return scanServers(p.placeId, user.id);
+          });
         })
         .then(function (found) {
-          if (!found) {
-            setResult('Could not find ' + displayName + ' in any public server. They may be in a full, private, or invite-only server.');
-            return;
-          }
+          if (!found) return;
           currentDeepLink = 'roblox://placeId=' + found.placeId + '&gameInstanceId=' + found.serverId;
-          setResult('Found ' + displayName + '! Server: ' + found.serverId);
+          setResult('Found ' + user.name + '! Server: ' + found.serverId);
           joinRow.classList.remove('hidden');
         })
         .catch(function (err) {
@@ -124,7 +158,7 @@
         });
     }
 
-    function scanServers(placeId, userId, displayName) {
+    function scanServers(placeId, userId) {
       var cursor = null;
       var scanned = 0;
 

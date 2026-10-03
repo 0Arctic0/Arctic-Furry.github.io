@@ -3,7 +3,7 @@
     "date": "2026-07-02",
     "title": "User Sniper page",
     "items": [
-      "Added /snipe: type a username or user ID and it finds their exact public server via Roblox APIs, with a one-tap join.",
+      "Added /snipe: type a username or user ID (optionally with a game link to scan that game directly) and it finds their exact public server, with a one-tap join and target avatar confirmation.",
       "Removed the user sniper from the Windows app to keep it a lean instant-joiner."
     ]
   },
