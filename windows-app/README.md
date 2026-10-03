@@ -82,6 +82,9 @@ build through `ArcticJoiner.csproj`.
 - **Tray mode:** closing the window hides it to the system tray (it keeps the
   hotkey alive). Right-click the tray icon to open it or exit. Pin it to your
   taskbar for one-click access.
+- **Pinned games:** click **Pin current** to save the game in the box for
+  one-click joining later - no link needed. Pins show as buttons in the window
+  and under **Pinned games** in the tray menu. Right-click a pin to remove it.
 - **User sniping moved to the website:** open `/snipe` on the site, type a
   username or user ID, and it finds their exact public server and gives you a
   one-tap roblox:// join. (Removed from the desktop app to keep it lean.)
