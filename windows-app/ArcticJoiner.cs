@@ -353,7 +353,7 @@ namespace ArcticJoiner
             _openSettingsButton = new Button
             {
                 Text = "Froststrap settings",
-                Location = new Point(186, 103),
+                Location = new Point(296, 103),
                 Size = new Size(150, 28),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left
             };
@@ -1571,7 +1571,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "2.4.7";
+        public const string Version = "2.4.8";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.
