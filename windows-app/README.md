@@ -29,10 +29,10 @@ Download **`install.cmd`** from this folder (on GitHub: open it, click the
 Raw/Download button) and **double-click it** — or run it from `cmd`.
 
 It downloads the latest source from GitHub, builds it with the compiler that
-ships with Windows, and installs it to:
+ships with Windows, and puts the exe directly in your Downloads folder:
 
 ```
-%LOCALAPPDATA%\FroststrapJoiner\FroststrapJoiner.exe
+Downloads\FroststrapJoiner.exe
 ```
 
 Nothing else is needed — no installers, no admin rights, no downloads from
