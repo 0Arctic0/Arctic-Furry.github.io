@@ -214,7 +214,7 @@ namespace ArcticJoiner
             FormBorderStyle = FormBorderStyle.FixedSingle;
             MaximizeBox = false;
             StartPosition = FormStartPosition.CenterScreen;
-            ClientSize = new Size(620, 200);
+            ClientSize = new Size(620, 235);
 
             // Use the exe's own compiled-in icon for the window/taskbar.
             try
@@ -368,8 +368,8 @@ namespace ArcticJoiner
                 Text = "",
                 Visible = false,
                 Enabled = false,
-                Location = new Point(16, 172),
-                Size = new Size(400, 24),
+                Location = new Point(16, 200),
+                Size = new Size(400, 28),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left
             };
             _updateButton.Click += (s, e) => RunSelfUpdate();
@@ -1178,7 +1178,7 @@ namespace ArcticJoiner
             foreach (System.Collections.Generic.KeyValuePair<string, string> kv in flags)
             {
                 if (i++ > 0) sb.AppendLine(",");
-                sb.Append("  "").Append(kv.Key).Append("": "").Append(kv.Value).Append(""");
+                sb.Append("  \"").Append(kv.Key).Append("\": \"").Append(kv.Value).Append("\"");
             }
             sb.AppendLine();
             sb.Append("}");
@@ -1571,7 +1571,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "2.4.4";
+        public const string Version = "2.4.5";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.
