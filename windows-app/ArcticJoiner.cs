@@ -1064,7 +1064,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "1.9.1";
+        public const string Version = "1.9.2";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.
@@ -1342,7 +1342,7 @@ namespace ArcticJoiner
                     { "usernames", new string[] { who } },
                     { "excludeBannedUsers", false }
                 });
-                var root = JsonDict(PostJson("https://users.roblox.com/v1/usernames/users", body));
+                var root = JsonDict(PostJson("https://users.roblox.com/v1/usernames/users", body, null));
                 var data = (System.Collections.ArrayList)root["data"];
                 if (data == null || data.Count == 0) { SetStatus("No Roblox user with that name was found.", true); return; }
                 var user = (System.Collections.Generic.Dictionary<string, object>)data[0];
@@ -1414,7 +1414,7 @@ namespace ArcticJoiner
 
                 if (count > 0)
                 {
-                    var thumbRoot = JsonDict(PostJson("https://thumbnails.roblox.com/v1/batch", sb.ToString()));
+                    var thumbRoot = JsonDict(PostJson("https://thumbnails.roblox.com/v1/batch", sb.ToString(), null));
                     var thumbs = (System.Collections.ArrayList)thumbRoot["data"];
                     if (thumbs != null)
                     {
