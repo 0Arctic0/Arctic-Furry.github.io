@@ -1226,7 +1226,6 @@ namespace ArcticJoiner
             "FFlagDebugDisableTelemetryV2Event",
             "FFlagDebugDisableTelemetryV2Stat",
             "FFlagDebugDisableTelemetryPoint",
-            "FFlagRenderDebugCheckThreading2"
             "FFlagRenderDebugCheckThreading2",
             "FFlagDebugGraphicsSkipVramChecks"
         };
@@ -1281,7 +1280,6 @@ namespace ArcticJoiner
             speed["DFIntLoadingScreenDelay"] = "0";
             speed["FFlagRenderDebugCheckThreading2"] = "True";
             speed["FFlagDebugGraphicsSkipVramChecks"] = "True";
-            speed["FFlagRenderDebugCheckThreading2"] = "True";
 
             string localApp = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
             string[] targets =
