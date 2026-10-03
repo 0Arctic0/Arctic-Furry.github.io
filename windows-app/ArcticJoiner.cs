@@ -554,6 +554,16 @@ namespace ArcticJoiner
                 ContextMenuStrip = menu,
                 Visible = true
             };
+            // Left-click the tray icon: open the window straight away.
+            _tray.MouseClick += (s, e) =>
+            {
+                if (e.Button == MouseButtons.Left)
+                {
+                    Show();
+                    Activate();
+                    _linkBox.Focus();
+                }
+            };
         }
 
         protected override void OnFormClosing(FormClosingEventArgs e)
@@ -632,12 +642,20 @@ namespace ArcticJoiner
                 catch { System.Threading.Thread.Sleep(100); }
             }
             if (string.IsNullOrWhiteSpace(text)) return;
-            string link = LinkParser.Parse(text);
-            if (link == null) return; // clipboard had no Roblox link - ignore quietly
+
+            // Always open the window and insert the clipboard text into the box.
             Show();
             Activate();
-            _linkBox.Text = text.Trim();
-            TryJoin(text, closeAfter: false);
+            string entry = text.Trim();
+            _lastAutoJoined = entry; // stop the paste watcher from double-joining
+            _linkBox.Text = entry;
+            _linkBox.SelectionStart = entry.Length;
+            if (LinkParser.Parse(entry) == null)
+            {
+                SetStatus("That is not a Roblox link - edit it and press Join.", true);
+                return;
+            }
+            TryJoin(entry, closeAfter: false);
         }
 
         protected override void OnKeyDown(KeyEventArgs e)
@@ -864,7 +882,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "1.5.1";
+        public const string Version = "1.5.2";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.
