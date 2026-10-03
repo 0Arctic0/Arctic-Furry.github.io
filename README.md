@@ -58,7 +58,7 @@ Examples:
 
 ## Made by
 
-- Built for **Arctic00Fox**
+- Built for **Arctic0Dev**
 - Implemented with help from **Cline**
 
 ## Publishing

@@ -27,7 +27,13 @@
       var i = 0;
       function attempt() {
         if (i >= urls.length) return Promise.reject(new Error('unavailable'));
-        return fetch(urls[i]).then(function (r) { return r.json(); }).catch(function () { i++; return attempt(); });
+        return fetch(urls[i]).then(function (r) {
+          // A mirror can answer with a non-2xx that still carries a JSON body
+          // (e.g. roproxy 429 rate-limit). Treat that as a failure so the
+          // next mirror is tried instead of returning the error object.
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          return r.json();
+        }).catch(function () { i++; return attempt(); });
       }
       return attempt();
     }
@@ -131,7 +137,7 @@
   }
 
   function buildCommunityIssueUrl(payload) {
-    const url = new URL('https://github.com/Arctic00Fox/Arctic00Fox.github.io/issues/new');
+    const url = new URL('https://github.com/Arctic0Dev/Arctic0Dev.github.io/issues/new');
     url.searchParams.set('title', 'Community private server: ' + payload.gameName);
     url.searchParams.set('body', [
       '## Community Private Server Submission',
@@ -163,14 +169,14 @@
     const url = new URL('https://discord.com/oauth2/authorize');
     url.searchParams.set('client_id', '1521410277600661554');
     url.searchParams.set('response_type', 'token');
-    url.searchParams.set('redirect_uri', 'https://arctic00fox.github.io/ps/');
+    url.searchParams.set('redirect_uri', 'https://arctic0dev.github.io/ps/');
     url.searchParams.set('scope', 'identify');
     url.searchParams.set('prompt', 'consent');
     return url.toString();
   }
 
-  const GITHUB_OWNER = 'Arctic00Fox';
-  const GITHUB_REPO = 'arctic00fox.github.io';
+  const GITHUB_OWNER = 'Arctic0Dev';
+  const GITHUB_REPO = 'Arctic0Dev.github.io';
   const COMMUNITY_POSTS_PATH = 'data/community-posts.json';
   const CHANGELOGS_PATH = 'data/changelogs.json';
 
@@ -400,7 +406,7 @@
           if (!game) return;
           if (placeLabel) placeLabel.textContent = game.name || 'Place ID';
           if (description) {
-            description.textContent = 'Joining ' + (game.Name || 'this place') +
+            description.textContent = 'Joining ' + (game.name || 'this place') +
               '. Tap the button below to open Roblox for this place' +
               (launchData || instanceId ? ' with its exact details' : '') +
               '. If Roblox does not launch, use the fallback web button.';

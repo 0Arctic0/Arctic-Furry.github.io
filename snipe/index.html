@@ -198,7 +198,10 @@
               setResult('Not found yet - watching and rescanning every 30 seconds. Uncheck Keep watching to stop.');
               stopWatch();
               watchTimer = setTimeout(function () { if (watchBox.checked) startSnipe(); }, 30000);
-            }\n            return;\n          }\n          stopWatch();
+            }
+            return;
+          }
+          stopWatch();
           currentDeepLink = 'roblox://placeId=' + found.placeId + '&gameInstanceId=' + found.serverId;
           setResult('Found ' + user.name + '! Server: ' + found.serverId);
           joinRow.classList.remove('hidden');
