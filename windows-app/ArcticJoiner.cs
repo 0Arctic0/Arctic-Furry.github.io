@@ -53,7 +53,7 @@ namespace ArcticJoiner
     internal sealed class Settings
     {
         public string FroststrapPath = "";
-        public bool AutoJoinOnPaste = true;
+        public bool InstantHotkeyJoin = true;
         public bool CloseAfterJoin = false;
         public int HotkeyMods = 0;        // no modifiers needed by default
         public string HotkeyKey = "Insert";
@@ -97,7 +97,7 @@ namespace ArcticJoiner
                         string key = line.Substring(0, eq).Trim();
                         string val = line.Substring(eq + 1).Trim();
                         if (key == "froststrapPath") s.FroststrapPath = val;
-                        else if (key == "autoJoinOnPaste") s.AutoJoinOnPaste = val == "1";
+                        else if (key == "instantHotkeyJoin" || key == "autoJoinOnPaste") s.InstantHotkeyJoin = val == "1"; // legacy key migrated
                         else if (key == "closeAfterJoin") s.CloseAfterJoin = val == "1";
                         else if (key == "hotkeyMods") { int n; if (int.TryParse(val, out n)) s.HotkeyMods = n; }
                         else if (key == "hotkeyKey") s.HotkeyKey = val.Length > 0 ? val : "J";
@@ -116,7 +116,7 @@ namespace ArcticJoiner
                 Directory.CreateDirectory(Path.GetDirectoryName(file));
                 File.WriteAllText(file, new StringBuilder()
                     .AppendLine("froststrapPath=" + FroststrapPath)
-                    .AppendLine("autoJoinOnPaste=" + (AutoJoinOnPaste ? "1" : "0"))
+                    .AppendLine("instantHotkeyJoin=" + (InstantHotkeyJoin ? "1" : "0"))
                     .AppendLine("closeAfterJoin=" + (CloseAfterJoin ? "1" : "0"))
                     .AppendLine("hotkeyMods=" + HotkeyMods)
                     .AppendLine("hotkeyKey=" + HotkeyKey)
@@ -190,19 +190,6 @@ namespace ArcticJoiner
             _history.AddRange(LoadHistory());
             foreach (string item in _history) _linkBox.Items.Add(item);
             _linkBox.KeyDown += LinkBoxKeyDown;
-            _linkBox.TextChanged += (s, e) =>
-            {
-                string candidate = _linkBox.Text.Trim();
-                if (!_settings.AutoJoinOnPaste) return;
-                if (candidate.Equals(_lastAutoJoined, StringComparison.OrdinalIgnoreCase)) return;
-                // Join as soon as a full link shows up in the box.
-                if (candidate.StartsWith("http", StringComparison.OrdinalIgnoreCase) ||
-                    candidate.StartsWith("roblox://", StringComparison.OrdinalIgnoreCase))
-                {
-                    _lastAutoJoined = candidate;
-                    TryJoin(candidate, closeAfter: false);
-                }
-            };
 
             _joinButton = new Button
             {
@@ -224,15 +211,16 @@ namespace ArcticJoiner
 
             _autoJoinCheck = new CheckBox
             {
-                Text = "Join instantly on paste",
-                Checked = _settings.AutoJoinOnPaste,
+                Text = "Join instantly using hotkey",
+                Checked = _settings.InstantHotkeyJoin,
                 AutoSize = true,
                 Location = new Point(16, 148)
             };
             _autoJoinCheck.CheckedChanged += (s, e) =>
             {
-                _settings.AutoJoinOnPaste = _autoJoinCheck.Checked;
+                _settings.InstantHotkeyJoin = _autoJoinCheck.Checked;
                 _settings.Save();
+                ApplyHotkey(); // registers or unregisters the global hotkey right away
             };
 
             _closeAfterCheck = new CheckBox
@@ -678,6 +666,15 @@ namespace ArcticJoiner
         private void ApplyHotkey()
         {
             UnregisterHotkey();
+            // The checkbox simply enables/disables the global hotkey.
+            if (!_settings.InstantHotkeyJoin)
+            {
+                if (_hotkeyLabel != null)
+                {
+                    _hotkeyLabel.Text = "Global hotkey is disabled - tick 'Join instantly using hotkey' to enable it.";
+                }
+                return;
+            }
             Keys key = ParseKey(_settings.HotkeyKey);
             if (key != Keys.None)
             {
@@ -709,12 +706,17 @@ namespace ArcticJoiner
             Show();
             Activate();
             string entry = text.Trim();
-            _lastAutoJoined = entry; // stop the paste watcher from double-joining
+            _lastAutoJoined = entry;
             _linkBox.Text = entry;
             _linkBox.SelectionStart = entry.Length;
             if (LinkParser.Parse(entry) == null)
             {
                 SetStatus("That is not a Roblox link - edit it and press Join.", true);
+                return;
+            }
+            if (!_settings.InstantHotkeyJoin)
+            {
+                SetStatus("Link inserted - press Join (or Enter) to launch.", false);
                 return;
             }
             TryJoin(entry, closeAfter: false);
@@ -943,7 +945,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "1.7.2";
+        public const string Version = "1.7.3";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.
