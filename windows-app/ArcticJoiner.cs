@@ -464,6 +464,17 @@ namespace ArcticJoiner
                 ForeColor = SystemColors.GrayText
             };
 
+            var fastFlagsButton = new Button
+            {
+                Text = "Apply fast flags (faster launch)",
+                Location = new Point(0, 210),
+                Size = new Size(220, 26)
+            };
+            fastFlagsButton.Click += (s, e) =>
+            {
+                ApplyFastFlags();
+            };
+
             _changeHotkeyButton = new Button
             {
                 Text = "Change hotkey (" + HotkeyDescription() + ")...",
@@ -515,6 +526,7 @@ namespace ArcticJoiner
             _settingsPanel.Controls.Add(checkUpdateButton);
             _settingsPanel.Controls.Add(_hotkeyLabel);
             _settingsPanel.Controls.Add(_changeHotkeyButton);
+            _settingsPanel.Controls.Add(fastFlagsButton);
             _settingsPanel.Controls.Add(_extractLabel);
             _settingsPanel.Controls.Add(changeDeleteKeyButton);
             _settingsPanel.Controls.Add(hint);
@@ -663,7 +675,7 @@ namespace ArcticJoiner
                 if (_settings.KillBeforeJoin)
                 {
                     KillRunningRoblox();
-                    System.Threading.Thread.Sleep(300); // let Windows release the old client
+                    System.Threading.Thread.Sleep(100); // short settle for handle release
                 }
 
                 string exe = _settings.FroststrapPath;
@@ -1104,8 +1116,61 @@ namespace ArcticJoiner
                 {
                     try { p.Kill(); } catch { }
                 }
+                foreach (Process p in Process.GetProcessesByName("RobloxCrashHandler"))
+                {
+                    try { p.Kill(); } catch { }
+                }
             }
             catch { }
+        }
+
+        // Writes a ClientAppSettings.json with speed-focused Roblox fast flags.
+        private void ApplyFastFlags()
+        {
+            const string json = "{
+" +
+                "  "FFlagDebugSkipSplashScreen": "True",
+" +
+                "  "FFlagSkipBootstrapperUpdateCheck": "True",
+" +
+                "  "DFIntDebugFRMQualityLevelOverride": "1",
+" +
+                "  "FLogNetwork": "7",
+" +
+                "  "FFlagDebugDisableTelemetryAppShellInit": "True",
+" +
+                "  "FFlagDebugDisableTelemetryV2Counter": "True",
+" +
+                "  "FFlagDebugDisableTelemetryV2Event": "True",
+" +
+                "  "FFlagDebugDisableTelemetryV2Stat": "True",
+" +
+                "  "FFlagDebugDisableTelemetryPoint": "True",
+" +
+                "  "FFlagRenderDebugCheckThreading2": "True"
+" +
+                "}";
+            string localApp = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            string[] targets =
+            {
+                Path.Combine(localApp, "Froststrap", "Modifications", "ClientSettings", "ClientAppSettings.json"),
+                Path.Combine(localApp, "Roblox", "ClientAppSettings.json")
+            };
+            int written = 0;
+            foreach (string file in targets)
+            {
+                try
+                {
+                    string dir = Path.GetDirectoryName(file);
+                    if (!Directory.Exists(dir)) continue; // only write where the folder exists
+                    File.WriteAllText(file, json);
+                    written++;
+                }
+                catch { }
+            }
+            SetStatus(written > 0
+                ? "Fast flags applied to " + written + " config file(s). Skip splash, lower preload, no telemetry."
+                : "No Froststrap/Roblox config folder found - install Froststrap first, then try again.", written > 0);
         }
 
         private static string DetectFroststrap()
@@ -1418,7 +1483,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "2.3.3";
+        public const string Version = "2.4.0";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.
