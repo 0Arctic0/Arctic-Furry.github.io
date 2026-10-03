@@ -59,6 +59,7 @@ namespace ArcticJoiner
         public string HotkeyKey = "Insert";
         public int DeleteMods = 0;        // second keybind: extract a link from copied text
         public string DeleteKey = "Delete";
+        public string RobloxSecurityCookie = ""; // optional, needed for reliable presence
 
         private static string SettingsFile
         {
@@ -105,6 +106,7 @@ namespace ArcticJoiner
                         else if (key == "hotkeyKey") s.HotkeyKey = val.Length > 0 ? val : "Insert";
                         else if (key == "deleteMods") { int n; if (int.TryParse(val, out n)) s.DeleteMods = n; }
                         else if (key == "deleteKey") s.DeleteKey = val.Length > 0 ? val : "Delete";
+                        else if (key == "robloxSecurityCookie") s.RobloxSecurityCookie = val;
                     }
                 }
             }
@@ -126,6 +128,7 @@ namespace ArcticJoiner
                     .AppendLine("hotkeyKey=" + HotkeyKey)
                     .AppendLine("deleteMods=" + DeleteMods)
                     .AppendLine("deleteKey=" + DeleteKey)
+                    .AppendLine("robloxSecurityCookie=" + RobloxSecurityCookie)
                     .ToString());
             }
             catch { }
@@ -1061,7 +1064,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "1.9.0";
+        public const string Version = "1.9.1";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.
@@ -1249,6 +1252,7 @@ namespace ArcticJoiner
     {
         private readonly Settings _settings;
         private readonly TextBox _input;
+        private readonly TextBox _cookieBox;
         private readonly Button _snipeButton;
         private readonly Label _status;
 
@@ -1260,7 +1264,7 @@ namespace ArcticJoiner
             FormBorderStyle = FormBorderStyle.FixedSingle;
             MaximizeBox = false;
             StartPosition = FormStartPosition.CenterParent;
-            ClientSize = new Size(420, 170);
+            ClientSize = new Size(420, 235);
             try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }
 
             var label = new Label
@@ -1272,6 +1276,21 @@ namespace ArcticJoiner
 
             _input = new TextBox { Location = new Point(12, 34), Width = 300 };
 
+            var cookieLabel = new Label
+            {
+                Text = "Optional: your .ROBLOSECURITY cookie (required for accurate presence):",
+                AutoSize = false,
+                Size = new Size(392, 18),
+                Location = new Point(12, 66),
+                ForeColor = SystemColors.GrayText
+            };
+            _cookieBox = new TextBox
+            {
+                Text = _settings.RobloxSecurityCookie,
+                Location = new Point(12, 86),
+                Width = 300
+            };
+
             _snipeButton = new Button { Text = "Snipe", Location = new Point(320, 32), Size = new Size(86, 26) };
             _snipeButton.Click += (s, e) => StartSnipe();
 
@@ -1279,13 +1298,15 @@ namespace ArcticJoiner
             {
                 Text = "Checks if the user is in a game, scans that game's public servers for them, and joins their server.",
                 AutoSize = false,
-                Size = new Size(392, 90),
-                Location = new Point(12, 68),
+                Size = new Size(392, 110),
+                Location = new Point(12, 118),
                 ForeColor = SystemColors.GrayText
             };
 
             Controls.Add(label);
             Controls.Add(_input);
+            Controls.Add(cookieLabel);
+            Controls.Add(_cookieBox);
             Controls.Add(_snipeButton);
             Controls.Add(_status);
             AcceptButton = _snipeButton;
@@ -1296,16 +1317,19 @@ namespace ArcticJoiner
             string who = _input.Text.Trim();
             if (who.Length == 0) return;
             _snipeButton.Enabled = false;
+            _settings.RobloxSecurityCookie = _cookieBox.Text.Trim();
+            _settings.Save();
+            string cookie = _settings.RobloxSecurityCookie;
             SetStatus("Looking up the user...", false);
             System.Threading.Tasks.Task.Run((Action)(() =>
             {
-                try { RunSnipe(who); }
+                try { RunSnipe(who, cookie); }
                 catch (System.Exception ex) { SetStatus("Snipe failed: " + ex.Message, true); }
                 try { Invoke((MethodInvoker)delegate { _snipeButton.Enabled = true; }); } catch { }
             }));
         }
 
-        private void RunSnipe(string who)
+        private void RunSnipe(string who, string cookie)
         {
             // 1. Resolve username -> user ID (digits are used directly).
             long userId;
@@ -1334,7 +1358,7 @@ namespace ArcticJoiner
             {
                 { "userIds", new long[] { userId } }
             });
-            var presenceRoot = JsonDict(PostJson("https://presence.roblox.com/v1/presence/users", presenceBody));
+            var presenceRoot = JsonDict(PostJson("https://presence.roblox.com/v1/presence/users", presenceBody, cookie));
             var presenceData = (System.Collections.ArrayList)presenceRoot["userPresences"];
             if (presenceData == null || presenceData.Count == 0) { SetStatus("Could not read that user's presence.", true); return; }
             var presence = (System.Collections.Generic.Dictionary<string, object>)presenceData[0];
@@ -1458,11 +1482,15 @@ namespace ArcticJoiner
             return wc;
         }
 
-        private static string PostJson(string url, string body)
+        private static string PostJson(string url, string body, string cookie)
         {
             using (var wc = NewClient())
             {
                 wc.Headers.Add("Content-Type", "application/json");
+                if (!string.IsNullOrEmpty(cookie))
+                {
+                    wc.Headers.Add("Cookie", ".ROBLOSECURITY=" + cookie);
+                }
                 return wc.UploadString(url, "POST", body);
             }
         }
