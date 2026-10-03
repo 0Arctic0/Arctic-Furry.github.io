@@ -444,6 +444,10 @@ namespace ArcticJoiner
 
                 RecordHistory(raw);
 
+                // Clear the box so the UI is ready for the next link right away.
+                _lastAutoJoined = "";
+                _linkBox.Text = "";
+
                 if (closeAfter || _settings.CloseAfterJoin)
                 {
                     _reallyExit = true; // actually exit, do not hide to the tray
@@ -939,7 +943,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "1.7.0";
+        public const string Version = "1.7.1";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.
