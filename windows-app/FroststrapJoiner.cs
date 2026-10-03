@@ -134,6 +134,13 @@ namespace FroststrapJoiner
             StartPosition = FormStartPosition.CenterScreen;
             ClientSize = new Size(620, 195);
 
+            // Use the exe's own compiled-in icon for the window/taskbar.
+            try
+            {
+                Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
+            }
+            catch { }
+
             var pasteLabel = new Label
             {
                 Text = "Paste a Roblox link and press Enter:",
@@ -440,12 +447,14 @@ namespace FroststrapJoiner
                     Directory.CreateDirectory(dir);
                     string cs = Path.Combine(dir, "FroststrapJoiner.cs");
                     Updater.DownloadFile(Updater.SourceUrl, cs);
+                    string ico = Path.Combine(dir, "icon.ico");
+                    try { Updater.DownloadFile(Updater.IconUrl, ico); } catch { ico = null; }
 
                     string exeDir = Path.GetDirectoryName(Application.ExecutablePath);
                     string newExe = Path.Combine(exeDir, "FroststrapJoiner.new.exe");
                     try { if (File.Exists(newExe)) File.Delete(newExe); } catch { }
 
-                    string err = Updater.CompileUpdate(cs, newExe);
+                    string err = Updater.CompileUpdate(cs, ico, newExe);
                     if (err != null) throw new Exception("build failed: " + err);
 
                     string current = Application.ExecutablePath;
@@ -627,7 +636,7 @@ namespace FroststrapJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "1.2.0";
+        public const string Version = "1.3.0";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.
@@ -637,6 +646,7 @@ namespace FroststrapJoiner
             "https://raw.githubusercontent.com/Arctic-Furry/Arctic-Furry.github.io/main/windows-app/";
         public const string VersionUrl = BaseUrl + "version.txt";
         public const string SourceUrl = BaseUrl + "FroststrapJoiner.cs";
+        public const string IconUrl = BaseUrl + "icon.ico";
 
         static Updater()
         {
@@ -723,18 +733,26 @@ namespace FroststrapJoiner
         }
 
         // Compiles an updated source file. Returns null on success or an error message.
-        public static string CompileUpdate(string csPath, string outPath)
+        public static string CompileUpdate(string csPath, string iconPath, string outPath)
         {
             string csc = FindCsc();
             if (csc == null)
             {
                 return "no .NET Framework C# compiler found on this PC";
             }
+            string extras = "";
+            if (iconPath != null && System.IO.File.Exists(iconPath))
+            {
+                extras = " /win32icon:" + Q + iconPath + Q +
+                         " /resource:" + Q + csPath + Q + ",FroststrapJoiner.cs";
+            }
             var psi = new ProcessStartInfo
             {
                 FileName = csc,
-                Arguments = "/nologo /target:winexe /optimize+ /out:" + Updater.Q + outPath + Updater.Q +
-                            " /r:System.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll " + Updater.Q + csPath + Updater.Q,
+                Arguments = "/nologo /target:winexe /optimize+" + extras +
+                            " /out:" + Q + outPath + Q +
+                            " /r:System.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll " +
+                            Q + csPath + Q,
                 UseShellExecute = false,
                 CreateNoWindow = true,
                 RedirectStandardOutput = true,

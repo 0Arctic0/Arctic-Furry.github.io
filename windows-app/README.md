@@ -30,11 +30,15 @@ Enter), then paste this single line and press Enter. It creates the folder in
 your Downloads, downloads the latest source, builds the app, and opens it:
 
 ```
-mkdir "%USERPROFILE%\Downloads\FroststrapJoiner" 2>nul & curl -fsSL -o "%USERPROFILE%\Downloads\FroststrapJoiner\FroststrapJoiner.cs" "https://raw.githubusercontent.com/Arctic-Furry/Arctic-Furry.github.io/main/windows-app/FroststrapJoiner.cs?nocache=%RANDOM%%RANDOM%" && "%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /nologo /target:winexe /optimize+ "/out:%USERPROFILE%\Downloads\FroststrapJoiner\FroststrapJoiner.exe" /r:System.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll "%USERPROFILE%\Downloads\FroststrapJoiner\FroststrapJoiner.cs" && start "" "%USERPROFILE%\Downloads\FroststrapJoiner\FroststrapJoiner.exe"
+mkdir "%USERPROFILE%\Downloads\FroststrapJoiner" 2>nul & curl -fsSL -o "%USERPROFILE%\Downloads\FroststrapJoiner\FroststrapJoiner.cs" "https://raw.githubusercontent.com/Arctic-Furry/Arctic-Furry.github.io/main/windows-app/FroststrapJoiner.cs?nocache=%RANDOM%%RANDOM%" & curl -fsSL -o "%USERPROFILE%\Downloads\FroststrapJoiner\icon.ico" "https://raw.githubusercontent.com/Arctic-Furry/Arctic-Furry.github.io/main/windows-app/icon.ico?nocache=%RANDOM%%RANDOM%" && "%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /nologo /target:winexe /optimize+ /win32icon:"%USERPROFILE%\Downloads\FroststrapJoiner\icon.ico" /resource:"%USERPROFILE%\Downloads\FroststrapJoiner\FroststrapJoiner.cs",FroststrapJoiner.cs "/out:%USERPROFILE%\Downloads\FroststrapJoiner\FroststrapJoiner.exe" /r:System.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll "%USERPROFILE%\Downloads\FroststrapJoiner\FroststrapJoiner.cs" && del "%USERPROFILE%\Downloads\FroststrapJoiner\FroststrapJoiner.cs" "%USERPROFILE%\Downloads\FroststrapJoiner\icon.ico" >nul 2>&1 && start "" "%USERPROFILE%\Downloads\FroststrapJoiner\FroststrapJoiner.exe"
 ```
 
-If your Windows is 32-bit, use this compiler path instead:
-`%WINDIR%\Microsoft.NET\Framework\v4.0.30319\csc.exe`
+The build embeds the source code inside the exe and cleans up the loose
+files, so you end up with just one tidy exe (with its own snowflake icon):
+
+```
+Downloads\FroststrapJoiner\FroststrapJoiner.exe
+```
 
 **Alternative:** download **`install.cmd`** from this folder (on GitHub: open it,
 click the Raw/Download button) and **double-click it** — or run it from `cmd`.
