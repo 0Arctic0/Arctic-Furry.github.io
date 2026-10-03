@@ -1579,14 +1579,14 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "2.4.8";
+        public const string Version = "2.5.0";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.
         public const char Q = '"';
 
         public const string BaseUrl =
-            "https://raw.githubusercontent.com/Arctic00Fox/Arctic00Fox.github.io/main/windows-app/";
+            "https://raw.githubusercontent.com/Arctic0Dev/Arctic0Dev.github.io/main/windows-app/";
         public const string VersionUrl = BaseUrl + "version.txt";
         public const string SourceUrl = BaseUrl + "ArcticJoiner.cs";
         public const string IconUrl = BaseUrl + "icon.ico";
@@ -1643,7 +1643,7 @@ namespace ArcticJoiner
         {
             if (rawUrl.StartsWith(BaseUrl, StringComparison.OrdinalIgnoreCase))
             {
-                return "https://api.github.com/repos/Arctic00Fox/Arctic00Fox.github.io/contents/windows-app/" +
+                return "https://api.github.com/repos/Arctic0Dev/Arctic0Dev.github.io/contents/windows-app/" +
                        rawUrl.Substring(BaseUrl.Length);
             }
             return null;
