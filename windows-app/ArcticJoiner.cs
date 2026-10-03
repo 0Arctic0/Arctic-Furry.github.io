@@ -418,6 +418,7 @@ namespace ArcticJoiner
 
                 if (closeAfter || _settings.CloseAfterJoin)
                 {
+                    _reallyExit = true; // actually exit, do not hide to the tray
                     Close();
                 }
             }
@@ -513,7 +514,27 @@ namespace ArcticJoiner
                     File.Move(newExe, current);
 
                     SetStatusUi("Updated to the latest version. Restarting...", false);
+
+                    // Tear down the tray and hotkey on the UI thread BEFORE the
+                    // new instance starts, otherwise the tray icon glitches and
+                    // two instances end up fighting over the hotkey.
+                    try
+                    {
+                        Invoke((MethodInvoker)delegate
+                        {
+                            UnregisterHotkey();
+                            if (_tray != null)
+                            {
+                                _tray.Visible = false;
+                                _tray.Dispose();
+                                _tray = null;
+                            }
+                        });
+                    }
+                    catch { }
+
                     Process.Start(current);
+                    _reallyExit = true; // Close() must exit for real, not hide to tray
                     Invoke((MethodInvoker)delegate { Close(); });
                 }
                 catch (Exception ex)
@@ -882,7 +903,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "1.5.3";
+        public const string Version = "1.5.4";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.
