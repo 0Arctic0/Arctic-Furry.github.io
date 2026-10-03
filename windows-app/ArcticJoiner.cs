@@ -563,7 +563,7 @@ namespace ArcticJoiner
                     }
                     using (Microsoft.Win32.RegistryKey command = root.CreateSubKey("shell\\open\\command"))
                     {
-                        command.SetValue("", "\"" + exe + "\" "%1\"");
+                        command.SetValue("", "\"" + exe + "\" \"%1\"");
                     }
                 }
             }
@@ -1389,7 +1389,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "2.3.1";
+        public const string Version = "2.3.2";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.
