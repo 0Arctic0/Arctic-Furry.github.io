@@ -1,5 +1,16 @@
 [
   {
+    "date": "2026-10-03",
+    "title": "Arctic Joiner v2.5.0: sniper repair and mirror reliability",
+    "items": [
+      "Fixed the /snipe page: its inline script contained stray escape sequences that stopped the whole User Sniper from running, so the snipe, Keep watching, and join features now work again.",
+      "Windows app v2.5.0: the self-updater now points at the current repository and the in-app version matches version.txt, so update checks no longer loop.",
+      "Repointed all site links, download URLs, and the community issue link to the current repository host.",
+      "API mirror fallback now checks the HTTP status, so a rate-limited mirror correctly falls through to the backup instead of showing an error payload.",
+      "Invite pages now display the real game name (fixed an incorrect casing on the games API field)."
+    ]
+  },
+  {
     "date": "2026-07-03",
     "title": "Server browser, game info, and app quality upgrades",
     "items": [
