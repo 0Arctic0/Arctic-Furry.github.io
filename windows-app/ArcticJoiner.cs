@@ -1141,6 +1141,8 @@ namespace ArcticJoiner
         {
             "FFlagDebugSkipSplashScreen",
             "FFlagSkipBootstrapperUpdateCheck",
+            "FFlagDebugDisableLoadingScreen",
+            "DFIntLoadingScreenDelay",
             "FLogNetwork",
             "FFlagDebugDisableTelemetryAppShellInit",
             "FFlagDebugDisableTelemetryV2Counter",
@@ -1148,6 +1150,8 @@ namespace ArcticJoiner
             "FFlagDebugDisableTelemetryV2Stat",
             "FFlagDebugDisableTelemetryPoint",
             "FFlagRenderDebugCheckThreading2"
+            "FFlagRenderDebugCheckThreading2",
+            "FFlagDebugGraphicsSkipVramChecks"
         };
 
         private static System.Collections.Generic.Dictionary<string, string> ReadFlagsFile(string path)
@@ -1196,6 +1200,10 @@ namespace ArcticJoiner
             speed["FFlagDebugDisableTelemetryV2Event"] = "True";
             speed["FFlagDebugDisableTelemetryV2Stat"] = "True";
             speed["FFlagDebugDisableTelemetryPoint"] = "True";
+            speed["FFlagDebugDisableLoadingScreen"] = "True";
+            speed["DFIntLoadingScreenDelay"] = "0";
+            speed["FFlagRenderDebugCheckThreading2"] = "True";
+            speed["FFlagDebugGraphicsSkipVramChecks"] = "True";
             speed["FFlagRenderDebugCheckThreading2"] = "True";
 
             string localApp = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
