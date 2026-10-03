@@ -83,6 +83,34 @@
       return fetch(url).then(function (r) { return r.json(); });
     }
 
+    // Tries the main mirror first, then alternates. Some networks get
+    // Cloudflare challenges on one mirror; the other usually works.
+    function mirrorAlternatives(url) {
+      return [url, url.replace('.roproxy.com', '.rprxy.xyz')];
+    }
+
+    function firstOk(urls, body) {
+      var i = 0;
+      function attempt() {
+        if (i >= urls.length) {
+          return Promise.reject(new Error('All API mirrors are unavailable right now. Try again in a minute.'));
+        }
+        var opts = body !== undefined ? {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        } : {};
+        return fetch(urls[i], opts).then(function (r) {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          return r.json().catch(function () { throw new Error('Mirror returned an invalid response.'); });
+        }).catch(function () { i++; return attempt(); });
+      }
+      return attempt();
+    }
+
+    function getApi(url) { return firstOk(mirrorAlternatives(url)); }
+    function postApi(url, body) { return firstOk(mirrorAlternatives(url), body); }
+
     function parseGameLink(value) {
       var text = String(value || '').trim();
       if (!text) return null;
@@ -120,16 +148,16 @@
       Promise.resolve()
         .then(function () {
           if (/^\d+$/.test(who)) {
-            return getJson('https://users.roproxy.com/v1/users/' + parseInt(who, 10));
+            return getApi('https://users.roproxy.com/v1/users/' + parseInt(who, 10));
           }
-          return postJson('https://users.roproxy.com/v1/usernames/users', {
+          return postApi('https://users.roproxy.com/v1/usernames/users', {
             usernames: [who],
             excludeBannedUsers: false
           }).then(function (data) {
             if (!data.data || !data.data.length) {
               throw new Error('No Roblox user with that name was found.');
             }
-            return getJson('https://users.roproxy.com/v1/users/' + data.data[0].id);
+            return getApi('https://users.roproxy.com/v1/users/' + data.data[0].id);
           });
         })
         .then(function (profile) {
@@ -140,7 +168,7 @@
             return scanServers(placeId, user.id);
           }
           setResult('Checking what ' + user.name + ' is playing (anonymous presence - may be inaccurate)...');
-          return postJson('https://presence.roproxy.com/v1/presence/users', {
+          return postApi('https://presence.roproxy.com/v1/presence/users', {
             userIds: [user.id]
           }).then(function (presence) {
             var p = presence.userPresences && presence.userPresences[0];
@@ -180,7 +208,7 @@
       function page() {
         var url = 'https://games.roproxy.com/v1/games/' + placeId +
           '/servers/Public?limit=100' + (cursor ? '&cursor=' + encodeURIComponent(cursor) : '');
-        return getJson(url).then(function (root) {
+        return getApi(url).then(function (root) {
           var servers = root.data || [];
           if (!servers.length) return null;
 
@@ -201,7 +229,7 @@
 
           if (!batch.length) return null;
 
-          return postJson('https://thumbnails.roproxy.com/v1/batch', batch)
+          return postApi('https://thumbnails.roproxy.com/v1/batch', batch)
             .then(function (thumbs) {
               var found = null;
               (thumbs.data || []).forEach(function (thumb) {

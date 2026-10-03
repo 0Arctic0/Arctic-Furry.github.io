@@ -63,6 +63,25 @@
       return fetch(url).then(function (r) { return r.json(); });
     }
 
+    // Tries the main mirror first, then an alternate in case of Cloudflare blocks.
+    function mirrorAlternatives(url) {
+      return [url, url.replace('.roproxy.com', '.rprxy.xyz')];
+    }
+
+    function firstOk(urls) {
+      var i = 0;
+      function attempt() {
+        if (i >= urls.length) return Promise.reject(new Error('All API mirrors are unavailable right now.'));
+        return fetch(urls[i]).then(function (r) {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          return r.json().catch(function () { throw new Error('Mirror returned an invalid response.'); });
+        }).catch(function () { i++; return attempt(); });
+      }
+      return attempt();
+    }
+
+    function getApi(url) { return firstOk(mirrorAlternatives(url)); }
+
     function loadGame() {
       var placeId = parseGameLink(gameBox.value);
       if (!placeId) {
@@ -73,11 +92,11 @@
       loadBtn.disabled = true;
       setStatus('Loading game info...');
       // multiget-place-details now needs auth, so resolve place -> universe -> game info.
-      fetch('https://apis.roproxy.com/universes/v1/places/' + placeId + '/universe')
+      getApi('https://apis.roproxy.com/universes/v1/places/' + placeId + '/universe')
         .then(function (r) { return r.json(); })
         .then(function (u) {
           if (!u || !u.universeId) throw new Error('Could not resolve that place.');
-          return getJson('https://games.roproxy.com/v1/games?universeIds=' + u.universeId);
+          return getApi('https://games.roproxy.com/v1/games?universeIds=' + u.universeId);
         })
         .then(function (root) {
           var games = root.data || [];
@@ -107,7 +126,7 @@
       function page() {
         var url = 'https://games.roproxy.com/v1/games/' + currentPlaceId +
           '/servers/Public?limit=100' + (cursor ? '&cursor=' + encodeURIComponent(cursor) : '');
-        return getJson(url).then(function (root) {
+        return getApi(url).then(function (root) {
           (root.data || []).forEach(function (s) { all.push(s); });
           if (root.nextPageCursor) {
             cursor = root.nextPageCursor;

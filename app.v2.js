@@ -23,6 +23,15 @@
     return String(value || '').trim();
   }
 
+    function firstOk(urls) {
+      var i = 0;
+      function attempt() {
+        if (i >= urls.length) return Promise.reject(new Error('unavailable'));
+        return fetch(urls[i]).then(function (r) { return r.json(); }).catch(function () { i++; return attempt(); });
+      }
+      return attempt();
+    }
+
   function normalizeLaunchData(value) {
     return String(value || '').trim();
   }
@@ -377,12 +386,13 @@
     if (placeId && mode !== 'private') {
       // Fetch the game's name so the invite page shows what you are joining.
       // multiget-place-details now needs auth, so go place -> universe -> game.
-      fetch('https://apis.roproxy.com/universes/v1/places/' + placeId + '/universe')
-        .then(function (r) { return r.json(); })
+      firstOk(['https://apis.roproxy.com/universes/v1/places/' + placeId + '/universe',
+          'https://apis.rprxy.xyz/universes/v1/places/' + placeId + '/universe'])
+        .then(function (u) { return u; })
         .then(function (u) {
           if (!u || !u.universeId) return null;
-          return fetch('https://games.roproxy.com/v1/games?universeIds=' + u.universeId)
-            .then(function (r) { return r.json(); });
+          return firstOk(['https://games.roproxy.com/v1/games?universeIds=' + u.universeId,
+              'https://games.rprxy.xyz/v1/games?universeIds=' + u.universeId]);
         })
         .then(function (root) {
           var game = root && root.data && root.data[0];
