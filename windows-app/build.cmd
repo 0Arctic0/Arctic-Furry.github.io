@@ -15,7 +15,7 @@ if not exist "%~dp0icon.ico" (
   exit /b 1
 )
 echo Building with %CSC% ...
-"%CSC%" /nologo /target:winexe /optimize+ /win32icon:"%~dp0icon.ico" /resource:"%~dp0ArcticJoiner.cs",ArcticJoiner.cs "/out:%~dp0ArcticJoiner.exe" /r:System.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll /r:System.Web.Extensions.dll "%~dp0ArcticJoiner.cs"
+"%CSC%" /nologo /target:winexe /optimize+ /win32icon:"%~dp0icon.ico" /resource:"%~dp0ArcticJoiner.cs",ArcticJoiner.cs "/out:%~dp0ArcticJoiner.exe" /r:System.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll "%~dp0ArcticJoiner.cs"
 if not exist "%~dp0ArcticJoiner.exe" (
   echo ERROR: build failed - see the messages above.
   pause

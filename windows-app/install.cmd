@@ -29,7 +29,7 @@ if not exist "%CSC%" (
 echo       Using %CSC%
 
 echo [3/3] Building ArcticJoiner.exe...
-"%CSC%" /nologo /target:winexe /optimize+ /win32icon:"%DIR%\icon.ico" /resource:"%DIR%\ArcticJoiner.cs",ArcticJoiner.cs "/out:%DIR%\ArcticJoiner.exe" /r:System.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll /r:System.Web.Extensions.dll "%DIR%\ArcticJoiner.cs"
+"%CSC%" /nologo /target:winexe /optimize+ /win32icon:"%DIR%\icon.ico" /resource:"%DIR%\ArcticJoiner.cs",ArcticJoiner.cs "/out:%DIR%\ArcticJoiner.exe" /r:System.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll "%DIR%\ArcticJoiner.cs"
 if not exist "%DIR%\ArcticJoiner.exe" (
   echo.
   echo ERROR: build failed - see the messages above.

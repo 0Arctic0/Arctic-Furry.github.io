@@ -24,6 +24,7 @@ Static GitHub Pages join helper for Roblox public servers and private server lin
 - `/invite` - opens a generated join page
 - `/ps` - private servers and community submissions
 - `/changelogs` - website update history
+- `/snipe` - user sniper: find and join a specific user's public server
 
 Examples:
 
