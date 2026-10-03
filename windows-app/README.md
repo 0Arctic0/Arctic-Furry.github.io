@@ -1,4 +1,4 @@
-# Froststrap Joiner (Windows app)
+# Arctic Joiner (Windows app)
 
 A tiny Windows app for **instant joins**. Paste a Roblox link, and it launches
 **Froststrap** directly with the right join info — no browser, no web page, no
@@ -30,14 +30,14 @@ Enter), then paste this single line and press Enter. It creates the folder in
 your Downloads, downloads the latest source, builds the app, and opens it:
 
 ```
-mkdir "%USERPROFILE%\Downloads\FroststrapJoiner" 2>nul & curl -fsSL -o "%USERPROFILE%\Downloads\FroststrapJoiner\FroststrapJoiner.cs" "https://raw.githubusercontent.com/Arctic-Furry/Arctic-Furry.github.io/main/windows-app/FroststrapJoiner.cs?nocache=%RANDOM%%RANDOM%" & curl -fsSL -o "%USERPROFILE%\Downloads\FroststrapJoiner\icon.ico" "https://raw.githubusercontent.com/Arctic-Furry/Arctic-Furry.github.io/main/windows-app/icon.ico?nocache=%RANDOM%%RANDOM%" && "%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /nologo /target:winexe /optimize+ /win32icon:"%USERPROFILE%\Downloads\FroststrapJoiner\icon.ico" /resource:"%USERPROFILE%\Downloads\FroststrapJoiner\FroststrapJoiner.cs",FroststrapJoiner.cs "/out:%USERPROFILE%\Downloads\FroststrapJoiner\FroststrapJoiner.exe" /r:System.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll "%USERPROFILE%\Downloads\FroststrapJoiner\FroststrapJoiner.cs" && del "%USERPROFILE%\Downloads\FroststrapJoiner\FroststrapJoiner.cs" "%USERPROFILE%\Downloads\FroststrapJoiner\icon.ico" >nul 2>&1 && start "" "%USERPROFILE%\Downloads\FroststrapJoiner\FroststrapJoiner.exe"
+mkdir "%USERPROFILE%\Downloads\ArcticJoiner" 2>nul & curl -fsSL -o "%USERPROFILE%\Downloads\ArcticJoiner\ArcticJoiner.cs" "https://raw.githubusercontent.com/Arctic-Furry/Arctic-Furry.github.io/main/windows-app/ArcticJoiner.cs?nocache=%RANDOM%%RANDOM%" & curl -fsSL -o "%USERPROFILE%\Downloads\ArcticJoiner\icon.ico" "https://raw.githubusercontent.com/Arctic-Furry/Arctic-Furry.github.io/main/windows-app/icon.ico?nocache=%RANDOM%%RANDOM%" && "%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /nologo /target:winexe /optimize+ /win32icon:"%USERPROFILE%\Downloads\ArcticJoiner\icon.ico" /resource:"%USERPROFILE%\Downloads\ArcticJoiner\ArcticJoiner.cs",ArcticJoiner.cs "/out:%USERPROFILE%\Downloads\ArcticJoiner\ArcticJoiner.exe" /r:System.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll "%USERPROFILE%\Downloads\ArcticJoiner\ArcticJoiner.cs" && del "%USERPROFILE%\Downloads\ArcticJoiner\ArcticJoiner.cs" "%USERPROFILE%\Downloads\ArcticJoiner\icon.ico" >nul 2>&1 && start "" "%USERPROFILE%\Downloads\ArcticJoiner\ArcticJoiner.exe"
 ```
 
 The build embeds the source code inside the exe and cleans up the loose
 files, so you end up with just one tidy exe (with its own snowflake icon):
 
 ```
-Downloads\FroststrapJoiner\FroststrapJoiner.exe
+Downloads\ArcticJoiner\ArcticJoiner.exe
 ```
 
 **Alternative:** download **`install.cmd`** from this folder (on GitHub: open it,
@@ -46,7 +46,7 @@ click the Raw/Download button) and **double-click it** — or run it from `cmd`.
 Either way you end up with:
 
 ```
-Downloads\FroststrapJoiner\FroststrapJoiner.exe
+Downloads\ArcticJoiner\ArcticJoiner.exe
 ```
 
 Nothing else is needed — no installers, no admin rights, no downloads from
@@ -63,15 +63,15 @@ The app **fetches updates from this GitHub repo automatically**:
 - Keep the exe somewhere writable (e.g. your Desktop or a folder in your user
   profile — the default install location is fine), not Program Files.
 
-To publish a new version, bump the `Version` constant in `FroststrapJoiner.cs`
+To publish a new version, bump the `Version` constant in `ArcticJoiner.cs`
 and `windows-app/version.txt`, and commit to `main`.
 
 ## Build from source (already downloaded)
 
 If you already have this folder on your PC, just double-click **`build.cmd`** —
-or run it from `cmd`. It builds `FroststrapJoiner.exe` right here using the
+or run it from `cmd`. It builds `ArcticJoiner.exe` right here using the
 compiler that ships with Windows. If you have the `dotnet` SDK, you can also
-build through `FroststrapJoiner.csproj`.
+build through `ArcticJoiner.csproj`.
 
 ## Use
 
@@ -80,7 +80,7 @@ build through `FroststrapJoiner.csproj`.
 - Or paste and press **Enter** / click **Join**.
 - "Close after joining" makes the window vanish as soon as the game launches.
 - You can also pass a link on the command line:
-  `FroststrapJoiner.exe "https://www.roblox.com/games/start?placeId=84303145803269&launchData=9db6585a-..."`
+  `ArcticJoiner.exe "https://www.roblox.com/games/start?placeId=84303145803269&launchData=9db6585a-..."`
   which joins instantly and closes — handy for shortcuts and scripts.
 
 ## Optional: make it the roblox:// handler
@@ -88,4 +88,4 @@ build through `FroststrapJoiner.csproj`.
 Froststrap itself normally owns the `roblox://` protocol. If you'd rather have
 **every** roblox link on your PC open through the joiner, run
 **`register-protocol.cmd`**. It re-registers the `roblox://` protocol (for your
-user only) to open `FroststrapJoiner.exe "%1"`.
+user only) to open `ArcticJoiner.exe "%1"`.

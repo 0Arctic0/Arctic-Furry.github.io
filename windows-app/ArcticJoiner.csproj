@@ -3,7 +3,11 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net6.0-windows</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
-    <AssemblyName>FroststrapJoiner</AssemblyName>
+    <AssemblyName>ArcticJoiner</AssemblyName>
+    <ApplicationIcon>icon.ico</ApplicationIcon>
     <Nullable>disable</Nullable>
   </PropertyGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="ArcticJoiner.cs" LogicalName="ArcticJoiner.cs" />
+  </ItemGroup>
 </Project>

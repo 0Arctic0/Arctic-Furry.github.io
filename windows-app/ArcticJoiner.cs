@@ -1,4 +1,4 @@
-// FroststrapJoiner - instant Roblox joiner for Froststrap users
+// ArcticJoiner - instant Roblox joiner for Froststrap users
 // Single-file C# WinForms app. No NuGet packages, no dependencies.
 // Build: see build.cmd (uses the csc.exe that ships with Windows .NET Framework).
 //
@@ -23,7 +23,7 @@ using System.IO;
 using System.Text;
 using System.Windows.Forms;
 
-namespace FroststrapJoiner
+namespace ArcticJoiner
 {
     internal static class Program
     {
@@ -62,7 +62,7 @@ namespace FroststrapJoiner
             {
                 string dir = Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                    "FroststrapJoiner");
+                    "ArcticJoiner");
                 return Path.Combine(dir, "settings.txt");
             }
         }
@@ -107,7 +107,7 @@ namespace FroststrapJoiner
     }
 }
 
-namespace FroststrapJoiner
+namespace ArcticJoiner
 {
     internal sealed class JoinerForm : Form
     {
@@ -128,7 +128,7 @@ namespace FroststrapJoiner
         {
             _settings = settings;
 
-            Text = "Froststrap Joiner";
+            Text = "Arctic Joiner";
             FormBorderStyle = FormBorderStyle.FixedSingle;
             MaximizeBox = false;
             StartPosition = FormStartPosition.CenterScreen;
@@ -443,15 +443,15 @@ namespace FroststrapJoiner
             {
                 try
                 {
-                    string dir = Path.Combine(Path.GetTempPath(), "FroststrapJoinerUpdate");
+                    string dir = Path.Combine(Path.GetTempPath(), "ArcticJoinerUpdate");
                     Directory.CreateDirectory(dir);
-                    string cs = Path.Combine(dir, "FroststrapJoiner.cs");
+                    string cs = Path.Combine(dir, "ArcticJoiner.cs");
                     Updater.DownloadFile(Updater.SourceUrl, cs);
                     string ico = Path.Combine(dir, "icon.ico");
                     try { Updater.DownloadFile(Updater.IconUrl, ico); } catch { ico = null; }
 
                     string exeDir = Path.GetDirectoryName(Application.ExecutablePath);
-                    string newExe = Path.Combine(exeDir, "FroststrapJoiner.new.exe");
+                    string newExe = Path.Combine(exeDir, "ArcticJoiner.new.exe");
                     try { if (File.Exists(newExe)) File.Delete(newExe); } catch { }
 
                     string err = Updater.CompileUpdate(cs, ico, newExe);
@@ -491,7 +491,7 @@ namespace FroststrapJoiner
     }
 }
 
-namespace FroststrapJoiner
+namespace ArcticJoiner
 {
     internal static class LinkParser
     {
@@ -631,12 +631,12 @@ namespace FroststrapJoiner
     }
 }
 
-namespace FroststrapJoiner
+namespace ArcticJoiner
 {
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "1.3.0";
+        public const string Version = "1.4.0";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.
@@ -645,7 +645,7 @@ namespace FroststrapJoiner
         public const string BaseUrl =
             "https://raw.githubusercontent.com/Arctic-Furry/Arctic-Furry.github.io/main/windows-app/";
         public const string VersionUrl = BaseUrl + "version.txt";
-        public const string SourceUrl = BaseUrl + "FroststrapJoiner.cs";
+        public const string SourceUrl = BaseUrl + "ArcticJoiner.cs";
         public const string IconUrl = BaseUrl + "icon.ico";
 
         static Updater()
@@ -744,7 +744,7 @@ namespace FroststrapJoiner
             if (iconPath != null && System.IO.File.Exists(iconPath))
             {
                 extras = " /win32icon:" + Q + iconPath + Q +
-                         " /resource:" + Q + csPath + Q + ",FroststrapJoiner.cs";
+                         " /resource:" + Q + csPath + Q + ",ArcticJoiner.cs";
             }
             var psi = new ProcessStartInfo
             {

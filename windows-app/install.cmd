@@ -1,17 +1,17 @@
 @echo off
-rem One-time install: downloads the latest FroststrapJoiner from GitHub, builds it,
-rem and puts a single FroststrapJoiner.exe into your Downloads\FroststrapJoiner folder.
+rem One-time install: downloads the latest ArcticJoiner from GitHub, builds it,
+rem and puts a single ArcticJoiner.exe into your Downloads\ArcticJoiner folder.
 setlocal
-set "DIR=%USERPROFILE%\Downloads\FroststrapJoiner"
+set "DIR=%USERPROFILE%\Downloads\ArcticJoiner"
 set "BASE=https://raw.githubusercontent.com/Arctic-Furry/Arctic-Furry.github.io/main/windows-app"
 
-echo === FroststrapJoiner install ===
+echo === ArcticJoiner install ===
 echo.
 
 mkdir "%DIR%" 2>nul
 
 echo [1/3] Downloading latest source from GitHub...
-curl -fsSL -o "%DIR%\FroststrapJoiner.cs" "%BASE%/FroststrapJoiner.cs?nocache=%RANDOM%%RANDOM%"
+curl -fsSL -o "%DIR%\ArcticJoiner.cs" "%BASE%/ArcticJoiner.cs?nocache=%RANDOM%%RANDOM%"
 if errorlevel 1 goto :fail
 curl -fsSL -o "%DIR%\version.txt" "%BASE%/version.txt?nocache=%RANDOM%%RANDOM%"
 if errorlevel 1 goto :fail
@@ -28,26 +28,26 @@ if not exist "%CSC%" (
 )
 echo       Using %CSC%
 
-echo [3/3] Building FroststrapJoiner.exe...
-"%CSC%" /nologo /target:winexe /optimize+ /win32icon:"%DIR%\icon.ico" /resource:"%DIR%\FroststrapJoiner.cs",FroststrapJoiner.cs "/out:%DIR%\FroststrapJoiner.exe" /r:System.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll "%DIR%\FroststrapJoiner.cs"
-if not exist "%DIR%\FroststrapJoiner.exe" (
+echo [3/3] Building ArcticJoiner.exe...
+"%CSC%" /nologo /target:winexe /optimize+ /win32icon:"%DIR%\icon.ico" /resource:"%DIR%\ArcticJoiner.cs",ArcticJoiner.cs "/out:%DIR%\ArcticJoiner.exe" /r:System.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll "%DIR%\ArcticJoiner.cs"
+if not exist "%DIR%\ArcticJoiner.exe" (
   echo.
   echo ERROR: build failed - see the messages above.
   goto :end_error
 )
 
 rem The source is embedded inside the exe, so tidy the folder down to just the app.
-del "%DIR%\FroststrapJoiner.cs" "%DIR%\version.txt" "%DIR%\icon.ico" >nul 2>&1
+del "%DIR%\ArcticJoiner.cs" "%DIR%\version.txt" "%DIR%\icon.ico" >nul 2>&1
 
 echo.
-echo === Done! Installed FroststrapJoiner.exe to: ===
-echo %DIR%\FroststrapJoiner.exe
+echo === Done! Installed ArcticJoiner.exe to: ===
+echo %DIR%\ArcticJoiner.exe
 echo.
 echo The app also self-updates from GitHub automatically.
 echo.
 choice /c YN /n /m "Start it now? [Y/N] "
 if errorlevel 2 goto :end_ok
-start "" "%DIR%\FroststrapJoiner.exe"
+start "" "%DIR%\ArcticJoiner.exe"
 goto :end_ok
 
 :fail
