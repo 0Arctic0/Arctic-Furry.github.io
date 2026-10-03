@@ -146,6 +146,7 @@ namespace ArcticJoiner
         private readonly Button _changeHotkeyButton;
         private readonly List<string> _history = new List<string>();
         private NotifyIcon _tray;
+        private System.Windows.Forms.Timer _updateTimer;
         private bool _reallyExit;
         private bool _captureHotkey;
         private bool _trayTipShown;
@@ -388,9 +389,15 @@ namespace ArcticJoiner
             AcceptButton = _joinButton;
 
             // Housekeeping: remove leftovers from a previous self-update,
-            // then check GitHub for a newer version in the background.
+            // then check GitHub for a newer version once the window is shown
+            // (checking in the constructor can race the window handle and
+            // silently drop the result), and re-check every 15 minutes so
+            // long-running tray sessions still see new updates.
             CleanupOldBinary();
-            CheckForUpdatesAsync();
+            Shown += (s, e) => CheckForUpdatesAsync(false);
+            _updateTimer = new System.Windows.Forms.Timer { Interval = 900000 };
+            _updateTimer.Tick += (s, e) => CheckForUpdatesAsync(false);
+            _updateTimer.Start();
 
             // Tray + global hotkey setup.
             KeyPreview = true;
@@ -627,6 +634,7 @@ namespace ArcticJoiner
                 return;
             }
             UnregisterHotkey();
+            if (_updateTimer != null) _updateTimer.Stop();
             if (_tray != null) _tray.Dispose();
             base.OnFormClosing(e);
         }
@@ -931,7 +939,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "1.6.2";
+        public const string Version = "1.7.0";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.
