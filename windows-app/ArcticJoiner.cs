@@ -186,6 +186,7 @@ namespace ArcticJoiner
         private readonly TextBox _froststrapPathBox;
         private readonly Button _browseButton;
         private readonly Button _openSettingsButton;
+        private readonly Button _prevButton;
         private readonly Panel _settingsPanel;
         private readonly Button _updateButton;
         private readonly ComboBox _linkBox;
@@ -274,6 +275,18 @@ namespace ArcticJoiner
                 Anchor = AnchorStyles.Top | AnchorStyles.Left
             };
             _joinButton.Click += (s, e) => TryJoin(_linkBox.Text, closeAfter: false);
+
+            _prevButton = new Button
+            {
+                Text = "Prev Server",
+                Location = new Point(186, 103),
+                Size = new Size(100, 28),
+                Anchor = AnchorStyles.Top | AnchorStyles.Left
+            };
+            _prevButton.Click += (s, e) =>
+            {
+                if (_history.Count > 0) TryJoin(_history[0], closeAfter: false);
+            };
 
             _status = new Label
             {
@@ -513,6 +526,7 @@ namespace ArcticJoiner
             Controls.Add(_autoJoinCheck);
             Controls.Add(_closeAfterCheck);
             Controls.Add(_openSettingsButton);
+            Controls.Add(_prevButton);
             Controls.Add(_onTopCheck);
             Controls.Add(_killCheck);
             Controls.Add(_settingsPanel);
@@ -618,8 +632,23 @@ namespace ArcticJoiner
             }
         }
 
+        // Map a history display name (e.g. "Tower of Hell") back to its raw link.
+        private string ResolveHistoryEntry(string text)
+        {
+            string trimmed = (text ?? "").Trim();
+            foreach (string entry in _history)
+            {
+                if (HistoryDisplay(entry).Equals(trimmed, StringComparison.OrdinalIgnoreCase))
+                {
+                    return entry;
+                }
+            }
+            return trimmed;
+        }
+
         public void TryJoin(string raw, bool closeAfter)
         {
+            raw = ResolveHistoryEntry(raw);
             string deepLink = LinkParser.Parse(raw);
             if (deepLink == null)
             {
@@ -1389,7 +1418,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "2.3.2";
+        public const string Version = "2.3.3";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.
