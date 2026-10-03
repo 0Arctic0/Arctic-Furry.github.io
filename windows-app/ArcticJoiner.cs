@@ -55,6 +55,8 @@ namespace ArcticJoiner
         public string FroststrapPath = "";
         public bool AutoJoinOnPaste = true;
         public bool CloseAfterJoin = false;
+        public int HotkeyMods = 6;        // Ctrl(2) + Shift(4)
+        public string HotkeyKey = "J";
 
         private static string SettingsFile
         {
@@ -83,6 +85,8 @@ namespace ArcticJoiner
                         if (key == "froststrapPath") s.FroststrapPath = val;
                         else if (key == "autoJoinOnPaste") s.AutoJoinOnPaste = val == "1";
                         else if (key == "closeAfterJoin") s.CloseAfterJoin = val == "1";
+                        else if (key == "hotkeyMods") { int n; if (int.TryParse(val, out n)) s.HotkeyMods = n; }
+                        else if (key == "hotkeyKey") s.HotkeyKey = val.Length > 0 ? val : "J";
                     }
                 }
             }
@@ -100,6 +104,8 @@ namespace ArcticJoiner
                     .AppendLine("froststrapPath=" + FroststrapPath)
                     .AppendLine("autoJoinOnPaste=" + (AutoJoinOnPaste ? "1" : "0"))
                     .AppendLine("closeAfterJoin=" + (CloseAfterJoin ? "1" : "0"))
+                    .AppendLine("hotkeyMods=" + HotkeyMods)
+                    .AppendLine("hotkeyKey=" + HotkeyKey)
                     .ToString());
             }
             catch { }
@@ -122,6 +128,15 @@ namespace ArcticJoiner
         private readonly Button _openSettingsButton;
         private readonly Panel _settingsPanel;
         private readonly Button _updateButton;
+        private readonly ComboBox _linkBox;
+        private readonly Label _hotkeyLabel;
+        private readonly List<string> _history = new List<string>();
+        private NotifyIcon _tray;
+        private bool _reallyExit;
+        private bool _captureHotkey;
+        private bool _trayTipShown;
+        private const int WM_HOTKEY = 0x0312;
+        private const int HOTKEY_ID = 1;
         private string _lastAutoJoined = "";
 
         public JoinerForm(Settings settings)
@@ -148,13 +163,17 @@ namespace ArcticJoiner
                 Location = new Point(16, 14)
             };
 
-            _linkBox = new TextBox
+            _linkBox = new ComboBox
             {
                 Location = new Point(16, 38),
                 Width = 588,
+                DropDownStyle = ComboBoxStyle.DropDown,
+                FlatStyle = FlatStyle.System,
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
             };
             _linkBox.Font = new Font(_linkBox.Font, FontStyle.Bold);
+            _history.AddRange(LoadHistory());
+            foreach (string item in _history) _linkBox.Items.Add(item);
             _linkBox.KeyDown += LinkBoxKeyDown;
             _linkBox.TextChanged += (s, e) =>
             {
@@ -224,7 +243,7 @@ namespace ArcticJoiner
             _openSettingsButton.Click += (s, e) =>
             {
                 _settingsPanel.Visible = !_settingsPanel.Visible;
-                ClientSize = new Size(ClientSize.Width, _settingsPanel.Visible ? 350 : 195);
+                ClientSize = new Size(ClientSize.Width, _settingsPanel.Visible ? 425 : 195);
             };
 
             _updateButton = new Button
@@ -241,7 +260,7 @@ namespace ArcticJoiner
             _settingsPanel = new Panel
             {
                 Location = new Point(16, 195),
-                Size = new Size(588, 145),
+                Size = new Size(588, 228),
                 Visible = false
             };
 
@@ -290,7 +309,7 @@ namespace ArcticJoiner
                 Text = "Tip: if the box above is empty, the joiner opens the roblox:// link directly, so whatever app is registered for it (Froststrap, if you set it as default) launches.",
                 AutoSize = false,
                 Size = new Size(588, 60),
-                Location = new Point(0, 92),
+                Location = new Point(0, 160),
                 ForeColor = SystemColors.GrayText
             };
 
@@ -306,10 +325,34 @@ namespace ArcticJoiner
                 CheckForUpdatesAsync(true);
             };
 
+            _hotkeyLabel = new Label
+            {
+                Text = "Global hotkey: " + HotkeyDescription() +
+                       " - joins whatever Roblox link is on your clipboard, from anywhere in Windows.",
+                AutoSize = false,
+                Size = new Size(588, 34),
+                Location = new Point(0, 92),
+                ForeColor = SystemColors.GrayText
+            };
+
+            var changeHotkeyButton = new Button
+            {
+                Text = "Change hotkey...",
+                Location = new Point(0, 126),
+                Size = new Size(130, 26)
+            };
+            changeHotkeyButton.Click += (s, e) =>
+            {
+                _captureHotkey = true;
+                SetStatus("Press the new hotkey combination now (Esc to cancel)...", false);
+            };
+
             _settingsPanel.Controls.Add(pathLabel);
             _settingsPanel.Controls.Add(_froststrapPathBox);
             _settingsPanel.Controls.Add(_browseButton);
             _settingsPanel.Controls.Add(checkUpdateButton);
+            _settingsPanel.Controls.Add(_hotkeyLabel);
+            _settingsPanel.Controls.Add(changeHotkeyButton);
             _settingsPanel.Controls.Add(hint);
 
             Controls.Add(pasteLabel);
@@ -328,6 +371,11 @@ namespace ArcticJoiner
             // then check GitHub for a newer version in the background.
             CleanupOldBinary();
             CheckForUpdatesAsync();
+
+            // Tray + global hotkey setup.
+            KeyPreview = true;
+            BuildTrayIcon();
+            ApplyHotkey();
         }
 
         private void LinkBoxKeyDown(object sender, KeyEventArgs e)
@@ -366,6 +414,8 @@ namespace ArcticJoiner
                     Process.Start(new ProcessStartInfo(deepLink) { UseShellExecute = true });
                     SetStatus("Opened join link (roblox:// handler): " + deepLink, false);
                 }
+
+                RecordHistory(raw);
 
                 if (closeAfter || _settings.CloseAfterJoin)
                 {
@@ -487,6 +537,185 @@ namespace ArcticJoiner
                 Invoke((MethodInvoker)delegate { SetStatus(message, error); });
             }
             catch { }
+        }
+
+        // ---- Tray, global hotkey, history ----
+
+        private void BuildTrayIcon()
+        {
+            var menu = new ContextMenuStrip();
+            menu.Items.Add("Open Arctic Joiner", null, (s, e) => { Show(); Activate(); });
+            menu.Items.Add("Join from clipboard", null, (s, e) => OnHotkey());
+            menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
+            menu.Items.Add("Exit", null, (s, e) => { _reallyExit = true; Close(); });
+            _tray = new NotifyIcon
+            {
+                Icon = Icon,
+                Text = "Arctic Joiner",
+                ContextMenuStrip = menu,
+                Visible = true
+            };
+        }
+
+        protected override void OnFormClosing(FormClosingEventArgs e)
+        {
+            // Closing the window hides to the tray instead of exiting.
+            if (!_reallyExit && e.CloseReason == CloseReason.UserClosing)
+            {
+                e.Cancel = true;
+                Hide();
+                if (!_trayTipShown)
+                {
+                    _trayTipShown = true;
+                    _tray.ShowBalloonTip(2500, "Arctic Joiner",
+                        "Still running in the tray. Right-click the tray icon to exit.", ToolTipIcon.Info);
+                }
+                return;
+            }
+            UnregisterHotkey();
+            if (_tray != null) _tray.Dispose();
+            base.OnFormClosing(e);
+        }
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool RegisterHotKey(IntPtr hWnd, int id, uint modifiers, uint vk);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
+
+        protected override void WndProc(ref Message m)
+        {
+            if (m.Msg == WM_HOTKEY && (int)m.WParam == HOTKEY_ID) OnHotkey();
+            base.WndProc(ref m);
+        }
+
+        private void UnregisterHotkey()
+        {
+            try { UnregisterHotKey(Handle, HOTKEY_ID); } catch { }
+        }
+
+        private static Keys ParseKey(string name)
+        {
+            try { return (Keys)new KeysConverter().ConvertFromString(name); }
+            catch { return Keys.None; }
+        }
+
+        private string HotkeyDescription()
+        {
+            string mods = "";
+            if ((_settings.HotkeyMods & 2) != 0) mods += "Ctrl+";
+            if ((_settings.HotkeyMods & 4) != 0) mods += "Shift+";
+            if ((_settings.HotkeyMods & 1) != 0) mods += "Alt+";
+            return mods + _settings.HotkeyKey;
+        }
+
+        private void ApplyHotkey()
+        {
+            UnregisterHotkey();
+            Keys key = ParseKey(_settings.HotkeyKey);
+            if (key != Keys.None)
+            {
+                RegisterHotKey(Handle, HOTKEY_ID, (uint)_settings.HotkeyMods, (uint)key);
+            }
+            if (_hotkeyLabel != null)
+            {
+                _hotkeyLabel.Text = "Global hotkey: " + HotkeyDescription() +
+                    " - joins whatever Roblox link is on your clipboard, from anywhere in Windows.";
+            }
+        }
+
+        private void OnHotkey()
+        {
+            string text = null;
+            for (int attempt = 0; attempt < 3 && text == null; attempt++)
+            {
+                try { text = Clipboard.GetText(); }
+                catch { System.Threading.Thread.Sleep(100); }
+            }
+            if (string.IsNullOrWhiteSpace(text)) return;
+            string link = LinkParser.Parse(text);
+            if (link == null) return; // clipboard had no Roblox link - ignore quietly
+            Show();
+            Activate();
+            _linkBox.Text = text.Trim();
+            TryJoin(text, closeAfter: false);
+        }
+
+        protected override void OnKeyDown(KeyEventArgs e)
+        {
+            if (_captureHotkey)
+            {
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+                if (e.KeyCode == Keys.Escape)
+                {
+                    _captureHotkey = false;
+                    SetStatus("Hotkey change cancelled.", false);
+                    return;
+                }
+                if (e.Modifiers != Keys.None && e.KeyCode != Keys.ControlKey &&
+                    e.KeyCode != Keys.ShiftKey && e.KeyCode != Keys.Menu)
+                {
+                    int mods = 0;
+                    if (e.Control) mods |= 2;
+                    if (e.Shift) mods |= 4;
+                    if (e.Alt) mods |= 1;
+                    _settings.HotkeyMods = mods;
+                    _settings.HotkeyKey = e.KeyCode.ToString();
+                    _settings.Save();
+                    _captureHotkey = false;
+                    ApplyHotkey();
+                    SetStatus("Global hotkey set to " + HotkeyDescription() + ".", false);
+                }
+                return;
+            }
+            base.OnKeyDown(e);
+        }
+
+        private static string HistoryFile()
+        {
+            return Path.Combine(
+                Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                    "ArcticJoiner"),
+                "history.txt");
+        }
+
+        private List<string> LoadHistory()
+        {
+            var result = new List<string>();
+            try
+            {
+                if (File.Exists(HistoryFile()))
+                {
+                    foreach (string line in File.ReadAllLines(HistoryFile()))
+                    {
+                        string t = line.Trim();
+                        if (t.Length > 0 && !result.Contains(t)) result.Add(t);
+                        if (result.Count >= 8) break;
+                    }
+                }
+            }
+            catch { }
+            return result;
+        }
+
+        private void RecordHistory(string raw)
+        {
+            string entry = (raw ?? "").Trim();
+            if (entry.Length == 0) return;
+            _history.RemoveAll(h => h.Equals(entry, StringComparison.OrdinalIgnoreCase));
+            _history.Insert(0, entry);
+            if (_history.Count > 8) _history.RemoveRange(8, _history.Count - 8);
+            try
+            {
+                string file = HistoryFile();
+                Directory.CreateDirectory(Path.GetDirectoryName(file));
+                File.WriteAllLines(file, _history.ToArray());
+            }
+            catch { }
+            _linkBox.Items.Clear();
+            foreach (string item in _history) _linkBox.Items.Add(item);
         }
     }
 }
@@ -636,7 +865,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "1.4.0";
+        public const string Version = "1.5.0";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.
