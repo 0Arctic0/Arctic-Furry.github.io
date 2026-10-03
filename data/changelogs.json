@@ -1,6 +1,15 @@
 [
   {
     "date": "2026-10-03",
+    "title": "Pinned games in the Windows app (v2.6.0)",
+    "items": [
+      "Windows app v2.6.0: pin your favorite games for one-click joining without a link - paste a game link and click Pin current.",
+      "Pinned games appear as buttons in the app window and under Pinned games in the tray menu; right-click a pin to remove it.",
+      "Pins are saved next to the exe (pinned.txt) and remember the real game name."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "title": "Arctic Joiner v2.5.0: sniper repair and mirror reliability",
     "items": [
       "Fixed the /snipe page: its inline script contained stray escape sequences that stopped the whole User Sniper from running, so the snipe, Keep watching, and join features now work again.",
