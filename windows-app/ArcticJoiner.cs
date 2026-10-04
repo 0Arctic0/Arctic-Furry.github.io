@@ -219,6 +219,7 @@ namespace ArcticJoiner
         private readonly Label _hotkeyLabel;
         private readonly Label _extractLabel;
         private readonly Button _changeHotkeyButton;
+        private readonly Button _changeDeleteKeyButton;
         private readonly Button _serversButton;
         private readonly Button _clearHistoryButton;
         private readonly CheckBox _rejoinCheck;
@@ -319,7 +320,7 @@ namespace ArcticJoiner
             {
                 Text = "Prev Server",
                 Location = new Point(134, 103),
-                Size = new Size(130, 28),
+                Size = new Size(160, 28),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left
             };
             _prevTip = new ToolTip();
@@ -344,8 +345,8 @@ namespace ArcticJoiner
             _serversButton = new Button
             {
                 Text = "Servers",
-                Location = new Point(272, 103),
-                Size = new Size(90, 28),
+                Location = new Point(440, 103),
+                Size = new Size(164, 28),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left
             };
             _serversButton.Click += (s, e) => OpenServerBrowser();
@@ -353,9 +354,8 @@ namespace ArcticJoiner
             _clearHistoryButton = new Button
             {
                 Text = "Clear history",
-                Location = new Point(498, 103),
-                Size = new Size(106, 28),
-                Anchor = AnchorStyles.Top | AnchorStyles.Left
+                Location = new Point(0, 290),
+                Size = new Size(160, 26)
             };
             _clearHistoryButton.Click += (s, e) => ClearHistory();
 
@@ -424,14 +424,14 @@ namespace ArcticJoiner
             _openSettingsButton = new Button
             {
                 Text = "Settings",
-                Location = new Point(370, 103),
-                Size = new Size(120, 28),
+                Location = new Point(302, 103),
+                Size = new Size(130, 28),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left
             };
             _openSettingsButton.Click += (s, e) =>
             {
                 _settingsPanel.Visible = !_settingsPanel.Visible;
-                ClientSize = new Size(ClientSize.Width, _settingsPanel.Visible ? 499 : 235);
+                ClientSize = new Size(ClientSize.Width, _settingsPanel.Visible ? 533 : 235);
             };
 
             _updateButton = new Button
@@ -448,7 +448,7 @@ namespace ArcticJoiner
             _settingsPanel = new Panel
             {
                 Location = new Point(16, 195),
-                Size = new Size(588, 296),
+                Size = new Size(588, 330),
                 Visible = false
             };
 
@@ -616,19 +616,19 @@ namespace ArcticJoiner
                 ForeColor = SystemColors.GrayText
             };
 
-            var changeDeleteKeyButton = new Button
+            _changeDeleteKeyButton = new Button
             {
                 Text = "Change key (" + DeleteDescription() + ")...",
                 Location = new Point(508, 126),
                 Size = new Size(80, 26),
                 Anchor = AnchorStyles.Top | AnchorStyles.Right
             };
-            changeDeleteKeyButton.Click += (s, e) =>
+            _changeDeleteKeyButton.Click += (s, e) =>
             {
                 _captureHotkey = true;
                 _captureTarget = 2;
                 UnregisterHotkey();
-                ActiveControl = changeDeleteKeyButton;
+                ActiveControl = _changeDeleteKeyButton;
                 Text = "Arctic Joiner - PRESS A KEY NOW (Esc to cancel)";
                 SetStatus("Press the new extract key now (Esc to cancel) - nothing will be pasted.", false);
             };
@@ -643,8 +643,9 @@ namespace ArcticJoiner
             _settingsPanel.Controls.Add(fastFlagsButton);
             _settingsPanel.Controls.Add(revertFlagsButton);
             _settingsPanel.Controls.Add(_rejoinCheck);
+            _settingsPanel.Controls.Add(_clearHistoryButton);
             _settingsPanel.Controls.Add(_extractLabel);
-            _settingsPanel.Controls.Add(changeDeleteKeyButton);
+            _settingsPanel.Controls.Add(_changeDeleteKeyButton);
             _settingsPanel.Controls.Add(hint);
 
             Controls.Add(pasteLabel);
@@ -656,7 +657,6 @@ namespace ArcticJoiner
             Controls.Add(_openSettingsButton);
             Controls.Add(_prevButton);
             Controls.Add(_serversButton);
-            Controls.Add(_clearHistoryButton);
             Controls.Add(_onTopCheck);
             Controls.Add(_killCheck);
             Controls.Add(_settingsPanel);
@@ -1181,6 +1181,10 @@ namespace ArcticJoiner
             if (_changeHotkeyButton != null)
             {
                 _changeHotkeyButton.Text = "Change hotkey (" + HotkeyDescription() + ")...";
+            }
+            if (_changeDeleteKeyButton != null)
+            {
+                _changeDeleteKeyButton.Text = "Change key (" + DeleteDescription() + ")...";
             }
         }
 
@@ -2377,7 +2381,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "2.8.2";
+        public const string Version = "2.8.3";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.

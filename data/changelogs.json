@@ -1,6 +1,14 @@
 [
   {
     "date": "2026-10-03",
+    "title": "Windows app v2.8.3: layout tidy and extract-key label fix",
+    "items": [
+      "Moved the Clear history button into the Settings panel and put the Servers button to the right of Settings on the main row.",
+      "The Change key button now shows the extract key it is currently set to and updates right after you change it, like Change hotkey does."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "title": "Windows app v2.8.2: removed start-minimized and quick-join",
     "items": [
       "Removed the Start minimized option and the quick-join popup with its hotkey and settings; the app keeps the join hotkey, extract key, Prev Server, Clear history, auto-rejoin, server browser, and game watchlist."
