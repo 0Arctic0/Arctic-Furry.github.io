@@ -1,6 +1,15 @@
 [
   {
     "date": "2026-10-03",
+    "title": "Windows app v2.8.5: fast flags fixed",
+    "items": [
+      "Fast flags no longer write the render/loading debug flags that caused lag and glitches (FFlagDebugDisableLoadingScreen, DFIntLoadingScreenDelay, FFlagRenderDebugCheckThreading2, FFlagDebugGraphicsSkipVramChecks). Only the safe ones remain: splash skip, bootstrapper update check skip, and the telemetry killers.",
+      "Revert still removes every flag older versions ever applied, so press Revert fast flags once after updating to clear the bad ones.",
+      "Flag files are now read with a strict JSON parser: a minified or hand-edited file can no longer lose its custom flags (like CSG detail distances) when applying or reverting, and unreadable files are left untouched instead of being overwritten."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "title": "Windows app v2.8.4: window icons and fast-flag path fix",
     "items": [
       "The Server Browser and Watch games windows now show the app icon.",

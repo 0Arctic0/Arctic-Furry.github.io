@@ -1310,24 +1310,135 @@ namespace ArcticJoiner
             "FFlagDebugGraphicsSkipVramChecks"
         };
 
-        private static System.Collections.Generic.Dictionary<string, string> ReadFlagsFile(string path)
+        // A tiny, strict JSON reader for the flat flag files. It accepts one
+        // object of string keys with string/number/bool values and fails on
+        // anything unexpected. A failed parse means "leave this file alone", so
+        // a minified or hand-edited file can never be wiped by a rewrite.
+        // (The old line-based reader lost every flag after the first line of a
+        // minified file - that is how custom settings could disappear.)
+        private static bool TryParseFlagsJson(string text, System.Collections.Generic.Dictionary<string, string> result)
         {
-            var result = new System.Collections.Generic.Dictionary<string, string>();
-            try
+            result.Clear();
+            if (text == null) return false;
+            int i = 0;
+            int n = text.Length;
+            while (i < n && char.IsWhiteSpace(text[i])) i++;
+            if (i >= n || text[i] != '{') return false;
+            i++;
+            while (true)
             {
-                if (!File.Exists(path)) return result;
-                foreach (string line in File.ReadAllLines(path))
+                while (i < n && char.IsWhiteSpace(text[i])) i++;
+                if (i >= n) return false;
+                if (text[i] == '}') { i++; break; }
+                if (result.Count > 0)
                 {
-                    string t = line.Trim().TrimEnd(',');
-                    int colon = t.IndexOf(':');
-                    if (colon < 2) continue;
-                    string key = t.Substring(0, colon).Trim().Trim('"');
-                    string val = t.Substring(colon + 1).Trim().Trim('"');
-                    if (key.Length > 0) result[key] = val;
+                    if (text[i] != ',') return false;
+                    i++;
+                    while (i < n && char.IsWhiteSpace(text[i])) i++;
+                    if (i >= n) return false;
+                }
+                string key;
+                if (text[i] != '"' || !TryReadJsonString(text, ref i, out key)) return false;
+                while (i < n && char.IsWhiteSpace(text[i])) i++;
+                if (i >= n || text[i] != ':') return false;
+                i++;
+                while (i < n && char.IsWhiteSpace(text[i])) i++;
+                if (i >= n) return false;
+                string value;
+                if (text[i] == '"')
+                {
+                    if (!TryReadJsonString(text, ref i, out value)) return false;
+                }
+                else
+                {
+                    int start = i;
+                    while (i < n && text[i] != ',' && text[i] != '}' && !char.IsWhiteSpace(text[i])) i++;
+                    if (i == start) return false;
+                    value = text.Substring(start, i - start);
+                    if (value != "true" && value != "false" && value != "null")
+                    {
+                        double number;
+                        if (!double.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out number)) return false;
+                    }
+                }
+                result[key] = value;
+            }
+            while (i < n && char.IsWhiteSpace(text[i])) i++;
+            return i == n;
+        }
+
+        private static bool TryReadJsonString(string text, ref int i, out string value)
+        {
+            i++;
+            var sb = new StringBuilder();
+            while (true)
+            {
+                if (i >= text.Length) { value = null; return false; }
+                char c = text[i];
+                if (c == '"') { i++; value = sb.ToString(); return true; }
+                if (c == '\\')
+                {
+                    i++;
+                    if (i >= text.Length) { value = null; return false; }
+                    char e = text[i];
+                    if (e == 'n') sb.Append('\n');
+                    else if (e == 't') sb.Append('\t');
+                    else if (e == 'r') sb.Append('\r');
+                    else if (e == 'b') sb.Append('\b');
+                    else if (e == 'f') sb.Append('\f');
+                    else if (e == 'u')
+                    {
+                        if (i + 4 >= text.Length) { value = null; return false; }
+                        int code;
+                        if (!int.TryParse(text.Substring(i + 1, 4), System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out code))
+                        {
+                            value = null;
+                            return false;
+                        }
+                        sb.Append((char)code);
+                        i += 4;
+                    }
+                    else sb.Append(e);
+                    i++;
+                }
+                else
+                {
+                    sb.Append(c);
+                    i++;
                 }
             }
-            catch { }
-            return result;
+        }
+
+        private static string EscapeJsonText(string value)
+        {
+            var sb = new StringBuilder();
+            foreach (char c in value ?? "")
+            {
+                if (c == '"') sb.Append("\\\"");
+                else if (c == '\\') sb.Append("\\\\");
+                else if (c == '\n') sb.Append("\\n");
+                else if (c == '\t') sb.Append("\\t");
+                else if (c == '\r') sb.Append("\\r");
+                else sb.Append(c);
+            }
+            return sb.ToString();
+        }
+
+        // Returns null when the file exists but cannot be parsed safely - callers
+        // must skip null results instead of rewriting the file.
+        private static System.Collections.Generic.Dictionary<string, string> ReadFlagsFile(string path)
+        {
+            try
+            {
+                if (!File.Exists(path)) return new System.Collections.Generic.Dictionary<string, string>();
+                var flags = new System.Collections.Generic.Dictionary<string, string>();
+                if (!TryParseFlagsJson(File.ReadAllText(path), flags)) return null;
+                return flags;
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         private static string BuildFlagsJson(System.Collections.Generic.Dictionary<string, string> flags)
@@ -1338,7 +1449,7 @@ namespace ArcticJoiner
             foreach (System.Collections.Generic.KeyValuePair<string, string> kv in flags)
             {
                 if (i++ > 0) sb.AppendLine(",");
-                sb.Append("  \"").Append(kv.Key).Append("\": \"").Append(kv.Value).Append("\"");
+                sb.Append("  \"").Append(EscapeJsonText(kv.Key)).Append("\": \"").Append(EscapeJsonText(kv.Value)).Append("\"");
             }
             sb.AppendLine();
             sb.Append("}");
@@ -1356,10 +1467,7 @@ namespace ArcticJoiner
             speed["FFlagDebugDisableTelemetryV2Event"] = "True";
             speed["FFlagDebugDisableTelemetryV2Stat"] = "True";
             speed["FFlagDebugDisableTelemetryPoint"] = "True";
-            speed["FFlagDebugDisableLoadingScreen"] = "True";
-            speed["DFIntLoadingScreenDelay"] = "0";
-            speed["FFlagRenderDebugCheckThreading2"] = "True";
-            speed["FFlagDebugGraphicsSkipVramChecks"] = "True";
+
 
             string localApp = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
             string[] targets =
@@ -1369,6 +1477,7 @@ namespace ArcticJoiner
                 Path.Combine(localApp, "Roblox", "ClientAppSettings.json")
             };
             int written = 0;
+            int skipped = 0;
             foreach (string file in targets)
             {
                 try
@@ -1383,6 +1492,11 @@ namespace ArcticJoiner
                         try { Directory.CreateDirectory(dir); } catch { continue; }
                     }
                     var flags = ReadFlagsFile(file);
+                    if (flags == null)
+                    {
+                        skipped++; // unreadable file - never risk wiping it
+                        continue;
+                    }
                     foreach (System.Collections.Generic.KeyValuePair<string, string> kv in speed)
                     {
                         flags[kv.Key] = kv.Value;
@@ -1393,7 +1507,8 @@ namespace ArcticJoiner
                 catch { }
             }
             SetStatus(written > 0
-                ? "Fast flags applied to " + written + " file(s) (merged with your existing settings)."
+                ? "Fast flags applied to " + written + " file(s) (merged with your existing settings)." +
+                  (skipped > 0 ? " " + skipped + " file(s) were left untouched because they could not be read safely." : "")
                 : "No Froststrap/Roblox config folder found - install Froststrap first, then try again.", written > 0);
         }
 
@@ -1413,7 +1528,7 @@ namespace ArcticJoiner
                 try
                 {
                     var flags = ReadFlagsFile(file);
-                    if (flags.Count == 0) continue;
+                    if (flags == null || flags.Count == 0) continue;
                     bool changed = false;
                     foreach (string key in SpeedFlagKeys)
                     {
@@ -2400,7 +2515,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "2.8.4";
+        public const string Version = "2.8.5";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.
