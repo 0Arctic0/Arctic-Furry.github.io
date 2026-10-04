@@ -1365,6 +1365,7 @@ namespace ArcticJoiner
             string[] targets =
             {
                 Path.Combine(localApp, "Froststrap", "Modifications", "ClientSettings", "ClientAppSettings.json"),
+                Path.Combine(localApp, "Roblox", "ClientSettings", "ClientAppSettings.json"),
                 Path.Combine(localApp, "Roblox", "ClientAppSettings.json")
             };
             int written = 0;
@@ -1373,7 +1374,14 @@ namespace ArcticJoiner
                 try
                 {
                     string dir = Path.GetDirectoryName(file);
-                    if (!Directory.Exists(dir)) continue;
+                    if (!Directory.Exists(dir))
+                    {
+                        // Create the folder only when its parent exists, so we never
+                        // invent a Roblox/Froststrap install that is not there.
+                        string parent = Path.GetDirectoryName(dir);
+                        if (string.IsNullOrEmpty(parent) || !Directory.Exists(parent)) continue;
+                        try { Directory.CreateDirectory(dir); } catch { continue; }
+                    }
                     var flags = ReadFlagsFile(file);
                     foreach (System.Collections.Generic.KeyValuePair<string, string> kv in speed)
                     {
@@ -1385,7 +1393,7 @@ namespace ArcticJoiner
                 catch { }
             }
             SetStatus(written > 0
-                ? "Fast flags applied (merged with your existing settings)."
+                ? "Fast flags applied to " + written + " file(s) (merged with your existing settings)."
                 : "No Froststrap/Roblox config folder found - install Froststrap first, then try again.", written > 0);
         }
 
@@ -1396,6 +1404,7 @@ namespace ArcticJoiner
             string[] targets =
             {
                 Path.Combine(localApp, "Froststrap", "Modifications", "ClientSettings", "ClientAppSettings.json"),
+                Path.Combine(localApp, "Roblox", "ClientSettings", "ClientAppSettings.json"),
                 Path.Combine(localApp, "Roblox", "ClientAppSettings.json")
             };
             int removed = 0;
@@ -1966,6 +1975,11 @@ namespace ArcticJoiner
             _placeId = initialPlaceId;
 
             Text = "Server Browser";
+            try
+            {
+                Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
+            }
+            catch { }
             FormBorderStyle = FormBorderStyle.Sizable;
             StartPosition = FormStartPosition.CenterScreen;
             ClientSize = new Size(560, 470);
@@ -2104,6 +2118,11 @@ namespace ArcticJoiner
         {
             _main = main;
             Text = "Watch games";
+            try
+            {
+                Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
+            }
+            catch { }
             FormBorderStyle = FormBorderStyle.Sizable;
             StartPosition = FormStartPosition.CenterScreen;
             ClientSize = new Size(520, 420);
@@ -2381,7 +2400,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "2.8.3";
+        public const string Version = "2.8.4";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.

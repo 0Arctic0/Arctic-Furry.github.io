@@ -1,6 +1,14 @@
 [
   {
     "date": "2026-10-03",
+    "title": "Windows app v2.8.4: window icons and fast-flag path fix",
+    "items": [
+      "The Server Browser and Watch games windows now show the app icon.",
+      "Fast flags are now also written to the correct Roblox ClientSettings folder (Roblox reads Roblox/ClientSettings/ClientAppSettings.json, not Roblox/ClientAppSettings.json), and the folder is created when the Roblox install exists."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "title": "Windows app v2.8.3: layout tidy and extract-key label fix",
     "items": [
       "Moved the Clear history button into the Settings panel and put the Servers button to the right of Settings on the main row.",
