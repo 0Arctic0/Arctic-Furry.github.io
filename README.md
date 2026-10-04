@@ -16,7 +16,7 @@ Static GitHub Pages join helper for Roblox public servers and private server lin
 - Simple menu page for generating join links
 - Dedicated private servers page with local favorites (favorite, filter, and sort by favorites)
 - Changelogs page
-- Windows desktop app (`windows-app/`) that pastes a link and instantly launches Froststrap with it, plus server hop, auto-rejoin, quick-join popup, and a server browser
+- Windows desktop app (`windows-app/`) that pastes a link and instantly launches Froststrap with it, plus server hop, auto-rejoin, quick-join popup, a server browser, and a game watchlist with open-slot notifications. Every site page can hand a join straight to the app with "Open in Arctic Joiner".
 
 ## Routes
 

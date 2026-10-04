@@ -59,6 +59,7 @@
       <div class="buttons hidden" id="snipe-join-row">
         <button class="button" id="snipe-join">Join Their Server</button>
         <button class="button secondary" id="snipe-copy">Copy Deep Link</button>
+        <button class="button secondary" id="snipe-arctic">Open in Arctic Joiner</button>
       </div>
 
       <p class="small">How it works: with a game link it scans that game's public servers and matches the target's avatar per server - this is fully accurate and needs no login. Without a game link it first tries Roblox's presence API, which is unreliable for anonymous requests (Roblox's own limitation).</p>
@@ -74,6 +75,7 @@
     var joinRow = document.getElementById('snipe-join-row');
     var joinBtn = document.getElementById('snipe-join');
     var copyBtn = document.getElementById('snipe-copy');
+    var arcticBtn = document.getElementById('snipe-arctic');
     var currentDeepLink = '';
     var watchTimer = null;
     var watchBoxEl = document.getElementById('snipe-watch');
@@ -343,6 +345,11 @@
     copyBtn.addEventListener('click', function () {
       if (currentDeepLink && navigator.clipboard) {
         navigator.clipboard.writeText(currentDeepLink);
+      }
+    });
+    arcticBtn.addEventListener('click', function () {
+      if (currentDeepLink) {
+        window.location.href = 'arcticjoiner://' + currentDeepLink.replace(/^roblox:\/?\/?/, '');
       }
     });
   })();

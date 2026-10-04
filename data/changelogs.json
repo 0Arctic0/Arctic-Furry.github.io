@@ -1,6 +1,14 @@
 [
   {
     "date": "2026-10-03",
+    "title": "App v2.8.0 game watchlist + Open in Arctic Joiner everywhere",
+    "items": [
+      "Windows app v2.8.0: new game watchlist - watch games for open slots, get a tray balloon when a slot frees up, and optionally auto-join the emptiest open server (manage it from the Watch games window).",
+      "Every site page (Server Browser, Server Hop, Server Watch, User Sniper) now has an Open in Arctic Joiner button that hands the join straight to the desktop app."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "title": "Windows app v2.7.2 + site /watch, robots, sitemap",
     "items": [
       "Windows app v2.7.2: Start minimized option, so the window can start hidden in the tray on launch.",

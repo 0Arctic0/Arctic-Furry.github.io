@@ -241,6 +241,7 @@
           '<div class="buttons" style="margin:0;">' +
           '<button class="button" data-server-id="' + escapeHtml(String(s.id)) + '">Join</button>' +
           '<button class="button secondary" data-copy-server="' + escapeHtml(String(s.id)) + '">Copy Invite Link</button>' +
+          '<button class="button secondary" data-arctic-server="' + escapeHtml(String(s.id)) + '">Arctic Joiner</button>' +
           '</div></div>';
         listEl.appendChild(row);
       });
@@ -269,6 +270,11 @@
     }
 
     listEl.addEventListener('click', function (e) {
+      var arcticBtn = e.target && e.target.closest ? e.target.closest('[data-arctic-server]') : null;
+      if (arcticBtn && currentPlaceId) {
+        window.location.href = 'arcticjoiner://placeId=' + currentPlaceId + '&gameInstanceId=' + arcticBtn.getAttribute('data-arctic-server');
+        return;
+      }
       var copyBtn = e.target && e.target.closest ? e.target.closest('[data-copy-server]') : null;
       if (copyBtn && currentPlaceId) {
         copyText(buildInviteLink(currentPlaceId, copyBtn.getAttribute('data-copy-server')), 'Invite link copied - anyone who opens it joins this exact server.');
