@@ -1,9 +1,9 @@
 [
   {
     "date": "2026-10-03",
-    "title": "Windows app v2.7.1 + site /watch, robots, sitemap",
+    "title": "Windows app v2.7.2 + site /watch, robots, sitemap",
     "items": [
-      "Windows app v2.7.1: Start with Windows and Start minimized options, so the hotkeys are ready after sign-in and the window can start hidden in the tray.",
+      "Windows app v2.7.2: Start minimized option, so the window can start hidden in the tray on launch.",
       "New /watch page: watch a game for open slots, and auto-join the emptiest server the moment a slot frees up.",
       "Added robots.txt and sitemap.xml for search engines, and the changelogs page now shows the current app version."
     ]
