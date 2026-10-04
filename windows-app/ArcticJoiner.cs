@@ -228,8 +228,8 @@ namespace ArcticJoiner
         private readonly Label _hotkeyLabel;
         private readonly Label _extractLabel;
         private readonly Button _changeHotkeyButton;
-        private readonly Button _nextButton;
         private readonly Button _serversButton;
+        private readonly Button _clearHistoryButton;
         private readonly CheckBox _rejoinCheck;
         private readonly Button _changeQuickKeyButton;
         private readonly CheckBox _startMinimizedCheck;
@@ -354,23 +354,23 @@ namespace ArcticJoiner
             };
             UpdatePrevButton();
 
-            _nextButton = new Button
-            {
-                Text = "Next Server",
-                Location = new Point(272, 103),
-                Size = new Size(120, 28),
-                Anchor = AnchorStyles.Top | AnchorStyles.Left
-            };
-            _nextButton.Click += (s, e) => HopToNewServer();
-
             _serversButton = new Button
             {
                 Text = "Servers",
-                Location = new Point(400, 103),
+                Location = new Point(272, 103),
                 Size = new Size(90, 28),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left
             };
             _serversButton.Click += (s, e) => OpenServerBrowser();
+
+            _clearHistoryButton = new Button
+            {
+                Text = "Clear history",
+                Location = new Point(498, 103),
+                Size = new Size(106, 28),
+                Anchor = AnchorStyles.Top | AnchorStyles.Left
+            };
+            _clearHistoryButton.Click += (s, e) => ClearHistory();
 
             _status = new Label
             {
@@ -437,8 +437,8 @@ namespace ArcticJoiner
             _openSettingsButton = new Button
             {
                 Text = "Settings",
-                Location = new Point(498, 103),
-                Size = new Size(106, 28),
+                Location = new Point(370, 103),
+                Size = new Size(120, 28),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left
             };
             _openSettingsButton.Click += (s, e) =>
@@ -611,6 +611,7 @@ namespace ArcticJoiner
                 _captureTarget = 3;
                 UnregisterHotkey();
                 ActiveControl = _changeQuickKeyButton;
+                Text = "Arctic Joiner - PRESS A KEY NOW (Esc to cancel)";
                 SetStatus("Press the new quick-join key now (Esc to cancel)...", false);
             };
 
@@ -643,6 +644,7 @@ namespace ArcticJoiner
                 // Pull focus away from the paste box so nothing can be typed or
                 // pasted into it while the next keystroke is being captured.
                 ActiveControl = _changeHotkeyButton;
+                Text = "Arctic Joiner - PRESS A KEY NOW (Esc to cancel)";
                 SetStatus("Press the new hotkey now (Esc to cancel) - nothing will be pasted.", false);
             };
 
@@ -669,6 +671,7 @@ namespace ArcticJoiner
                 _captureTarget = 2;
                 UnregisterHotkey();
                 ActiveControl = changeDeleteKeyButton;
+                Text = "Arctic Joiner - PRESS A KEY NOW (Esc to cancel)";
                 SetStatus("Press the new extract key now (Esc to cancel) - nothing will be pasted.", false);
             };
 
@@ -696,8 +699,8 @@ namespace ArcticJoiner
             Controls.Add(_closeAfterCheck);
             Controls.Add(_openSettingsButton);
             Controls.Add(_prevButton);
-            Controls.Add(_nextButton);
             Controls.Add(_serversButton);
+            Controls.Add(_clearHistoryButton);
             Controls.Add(_onTopCheck);
             Controls.Add(_killCheck);
             Controls.Add(_settingsPanel);
@@ -843,7 +846,7 @@ namespace ArcticJoiner
                 return false;
             }
 
-            // Remember this join for "Next Server" and auto-rejoin.
+            // Remember this join for auto-rejoin and the server browser.
             _lastJoinLink = deepLink;
             string joinedPlace = PlaceIdOf(deepLink);
             if (joinedPlace != null) _lastJoinPlaceId = joinedPlace;
@@ -1064,7 +1067,13 @@ namespace ArcticJoiner
             }
             if (_history.Count > 0)
             {
-                menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
+                var removeMenu = new ToolStripMenuItem("Remove a recent server...");
+                foreach (string entry in _history)
+                {
+                    string copy = entry;
+                    removeMenu.DropDownItems.Add(HistoryDisplay(copy), null, (s, e) => RemoveHistoryEntry(copy));
+                }
+                menu.Items.Add(removeMenu);
                 menu.Items.Add("Clear history", null, (s, e) => ClearHistory());
             }
             menu.Items.Add("Open Arctic Joiner", null, (s, e) => { Show(); Activate(); });
@@ -1286,6 +1295,7 @@ namespace ArcticJoiner
                 {
                     _captureHotkey = false;
                     ApplyHotkey(); // re-register the old hotkey
+                    Text = "Arctic Joiner";
                     SetStatus("Hotkey change cancelled - still set to " + HotkeyDescription() + ".", false);
                     return;
                 }
@@ -1322,6 +1332,7 @@ namespace ArcticJoiner
                     _settings.Save(); // saved immediately, no extra step
                     _captureHotkey = false;
                     ApplyHotkey();
+                    Text = "Arctic Joiner";
                     SetStatus(label + " set to " + desc + " and saved.", false);
                 }
                 return;
@@ -1723,6 +1734,16 @@ namespace ArcticJoiner
 
         // ---- History helpers ----
 
+        private void RemoveHistoryEntry(string raw)
+        {
+            _history.RemoveAll(h => h.Equals(raw, StringComparison.OrdinalIgnoreCase));
+            _historyNames.Remove(raw);
+            try { File.WriteAllLines(HistoryFile(), _history.ToArray()); } catch { }
+            RenderHistoryItems();
+            BuildTrayIcon();
+            SetStatus("Removed one recent server.", false);
+        }
+
         private void ClearHistory()
         {
             _history.Clear();
@@ -1782,42 +1803,6 @@ namespace ArcticJoiner
             if (_lastJoinPlaceId != null) return _lastJoinPlaceId;
             if (_history.Count > 0) return PlaceIdOf(_history[0]);
             return null;
-        }
-
-        private void HopToNewServer()
-        {
-            string placeId = CurrentPlaceId();
-            if (placeId == null)
-            {
-                SetStatus("Join a game (or paste a game link) first, then hop servers.", true);
-                return;
-            }
-            SetStatus("Finding a fresh server...", false);
-            _nextButton.Enabled = false;
-            System.Threading.Tasks.Task.Run((Action)(() =>
-            {
-                ServerInfo pick = null;
-                try { pick = PickEmptiest(FetchServers(placeId)); } catch { }
-                try
-                {
-                    Invoke((MethodInvoker)delegate
-                    {
-                        _nextButton.Enabled = true;
-                        if (pick != null)
-                        {
-                            SetStatus("Hopping to " + pick.Playing + " / " + pick.MaxPlayers + " players.", false);
-                            TryJoin("roblox://placeId=" + placeId + "&gameInstanceId=" + pick.Id, closeAfter: false);
-                        }
-                        else
-                        {
-                            // No list (or everything full) - let Roblox assign a fresh server.
-                            SetStatus("Hopping to a new server...", false);
-                            TryJoin("roblox://placeId=" + placeId, closeAfter: false);
-                        }
-                    });
-                }
-                catch { }
-            }));
         }
 
         private void OpenServerBrowser()
@@ -2570,7 +2555,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "2.8.0";
+        public const string Version = "2.8.1";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.

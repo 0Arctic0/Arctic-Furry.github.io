@@ -88,8 +88,8 @@ build through `ArcticJoiner.csproj`.
 - **Prev Server** shows what it will rejoin - the button shows the game name
   and hovering gives the game and server ID. The tray menu has **Clear history**
   to wipe the recent-join list.
-- **Next Server (server hop):** one click rejoins the same game on a fresh,
-  emptier server.
+- **History:** the Clear history button wipes the recent-join list, and the tray
+  menu can remove individual recent servers or clear them all.
 - **Auto-rejoin:** optionally rejoin your last server automatically if Roblox
   closes or crashes.
 - **Quick-join popup (default Ctrl+Shift+J, customizable):** a small popup of

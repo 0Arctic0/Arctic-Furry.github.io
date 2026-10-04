@@ -1,6 +1,15 @@
 [
   {
     "date": "2026-10-03",
+    "title": "Windows app v2.8.1: easier history removal, clearer key changes",
+    "items": [
+      "Removed the Next Server button.",
+      "Clear history is now a button in the main window, and the tray menu can also remove individual recent servers.",
+      "Changing a key now makes it obvious: the window title shows PRESS A KEY NOW while it waits for the new hotkey, extract key, or quick-join key."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "title": "App v2.8.0 game watchlist + Open in Arctic Joiner everywhere",
     "items": [
       "Windows app v2.8.0: new game watchlist - watch games for open slots, get a tray balloon when a slot frees up, and optionally auto-join the emptiest open server (manage it from the Watch games window).",
