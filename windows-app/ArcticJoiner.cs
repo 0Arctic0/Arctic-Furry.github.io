@@ -95,9 +95,6 @@ namespace ArcticJoiner
         public bool AlwaysOnTop = false;
         public bool KillBeforeJoin = true;
         public bool AutoRejoin = false;   // rejoin the last server if Roblox closes
-        public int QuickMods = 6;         // quick-join popup hotkey: Ctrl+Shift
-        public string QuickKey = "J";
-        public bool StartMinimized = false;   // start hidden in the tray
         public string WatchGames = "";        // comma-separated placeIds to watch
         public bool WatchNotify = true;       // tray balloon when a watched game opens a slot
         public bool WatchAutoJoin = false;    // auto-join the emptiest open server
@@ -150,9 +147,6 @@ namespace ArcticJoiner
                         else if (key == "alwaysOnTop") s.AlwaysOnTop = val == "1";
                         else if (key == "killBeforeJoin") s.KillBeforeJoin = val == "1";
                         else if (key == "autoRejoin") s.AutoRejoin = val == "1";
-                        else if (key == "quickMods") { int n; if (int.TryParse(val, out n)) s.QuickMods = n; }
-                        else if (key == "quickKey") s.QuickKey = val.Length > 0 ? val : "J";
-                        else if (key == "startMinimized") s.StartMinimized = val == "1";
                         else if (key == "watchGames") s.WatchGames = val;
                         else if (key == "watchNotify") s.WatchNotify = val == "1";
                         else if (key == "watchAutoJoin") s.WatchAutoJoin = val == "1";
@@ -180,9 +174,6 @@ namespace ArcticJoiner
                     .AppendLine("alwaysOnTop=" + (AlwaysOnTop ? "1" : "0"))
                     .AppendLine("killBeforeJoin=" + (KillBeforeJoin ? "1" : "0"))
                     .AppendLine("autoRejoin=" + (AutoRejoin ? "1" : "0"))
-                    .AppendLine("quickMods=" + QuickMods)
-                    .AppendLine("quickKey=" + QuickKey)
-                    .AppendLine("startMinimized=" + (StartMinimized ? "1" : "0"))
                     .AppendLine("watchGames=" + WatchGames)
                     .AppendLine("watchNotify=" + (WatchNotify ? "1" : "0"))
                     .AppendLine("watchAutoJoin=" + (WatchAutoJoin ? "1" : "0"))
@@ -231,8 +222,6 @@ namespace ArcticJoiner
         private readonly Button _serversButton;
         private readonly Button _clearHistoryButton;
         private readonly CheckBox _rejoinCheck;
-        private readonly Button _changeQuickKeyButton;
-        private readonly CheckBox _startMinimizedCheck;
         private readonly List<string> _history = new List<string>();
         private ToolTip _prevTip;
         private NotifyIcon _tray;
@@ -245,14 +234,12 @@ namespace ArcticJoiner
         private const int WM_HOTKEY = 0x0312;
         private const int HOTKEY_ID = 1;
         private const int HOTKEY_ID2 = 2; // extract-link keybind (Delete)
-        private const int HOTKEY_ID3 = 3; // quick-join popup
         private string _lastAutoJoined = "";
         private string _lastJoinLink = "";
         private string _lastJoinPlaceId = null;
         private bool _rejoinArmed;
         private bool _robloxWasRunning;
         private System.Windows.Forms.Timer _rejoinTimer;
-        private QuickJoinForm _quickForm;
         private readonly List<string> _watchList = new List<string>();
         private readonly Dictionary<string, int> _watchOpen = new Dictionary<string, int>();
         private System.Windows.Forms.Timer _watchTimer;
@@ -444,7 +431,7 @@ namespace ArcticJoiner
             _openSettingsButton.Click += (s, e) =>
             {
                 _settingsPanel.Visible = !_settingsPanel.Visible;
-                ClientSize = new Size(ClientSize.Width, _settingsPanel.Visible ? 559 : 235);
+                ClientSize = new Size(ClientSize.Width, _settingsPanel.Visible ? 499 : 235);
             };
 
             _updateButton = new Button
@@ -461,7 +448,7 @@ namespace ArcticJoiner
             _settingsPanel = new Panel
             {
                 Location = new Point(16, 195),
-                Size = new Size(588, 356),
+                Size = new Size(588, 296),
                 Visible = false
             };
 
@@ -599,35 +586,6 @@ namespace ArcticJoiner
                 else { _rejoinArmed = false; if (_rejoinTimer != null) _rejoinTimer.Stop(); }
             };
 
-            _changeQuickKeyButton = new Button
-            {
-                Text = "Change quick-join key (" + QuickDescription() + ")...",
-                Location = new Point(0, 290),
-                Size = new Size(320, 26)
-            };
-            _changeQuickKeyButton.Click += (s, e) =>
-            {
-                _captureHotkey = true;
-                _captureTarget = 3;
-                UnregisterHotkey();
-                ActiveControl = _changeQuickKeyButton;
-                Text = "Arctic Joiner - PRESS A KEY NOW (Esc to cancel)";
-                SetStatus("Press the new quick-join key now (Esc to cancel)...", false);
-            };
-
-            _startMinimizedCheck = new CheckBox
-            {
-                Text = "Start minimized to the tray (no window on launch)",
-                Checked = _settings.StartMinimized,
-                AutoSize = true,
-                Location = new Point(0, 322)
-            };
-            _startMinimizedCheck.CheckedChanged += (s, e) =>
-            {
-                _settings.StartMinimized = _startMinimizedCheck.Checked;
-                _settings.Save();
-            };
-
             _changeHotkeyButton = new Button
             {
                 Text = "Change hotkey (" + HotkeyDescription() + ")...",
@@ -685,8 +643,6 @@ namespace ArcticJoiner
             _settingsPanel.Controls.Add(fastFlagsButton);
             _settingsPanel.Controls.Add(revertFlagsButton);
             _settingsPanel.Controls.Add(_rejoinCheck);
-            _settingsPanel.Controls.Add(_changeQuickKeyButton);
-            _settingsPanel.Controls.Add(_startMinimizedCheck);
             _settingsPanel.Controls.Add(_extractLabel);
             _settingsPanel.Controls.Add(changeDeleteKeyButton);
             _settingsPanel.Controls.Add(hint);
@@ -714,21 +670,7 @@ namespace ArcticJoiner
             // silently drop the result), and re-check every 15 minutes so
             // long-running tray sessions still see new updates.
             CleanupOldBinary();
-            Shown += (s, e) =>
-            {
-                CheckForUpdatesAsync(false);
-                if (_settings.StartMinimized)
-                {
-                    // Start hidden in the tray; the balloon explains how to open it.
-                    Hide();
-                    if (!_trayTipShown && _tray != null)
-                    {
-                        _trayTipShown = true;
-                        _tray.ShowBalloonTip(2500, "Arctic Joiner",
-                            "Running in the tray. Left-click the icon to open, right-click to exit.", ToolTipIcon.Info);
-                    }
-                }
-            };
+            Shown += (s, e) => CheckForUpdatesAsync(false);
             _updateTimer = new System.Windows.Forms.Timer { Interval = 900000 };
             _updateTimer.Tick += (s, e) => CheckForUpdatesAsync(false);
             _updateTimer.Start();
@@ -1138,7 +1080,6 @@ namespace ArcticJoiner
             {
                 if ((int)m.WParam == HOTKEY_ID) OnHotkey();
                 else if ((int)m.WParam == HOTKEY_ID2) OnExtractHotkey();
-                else if ((int)m.WParam == HOTKEY_ID3) ShowQuickJoin();
             }
             base.WndProc(ref m);
         }
@@ -1147,7 +1088,6 @@ namespace ArcticJoiner
         {
             try { UnregisterHotKey(Handle, HOTKEY_ID); } catch { }
             try { UnregisterHotKey(Handle, HOTKEY_ID2); } catch { }
-            try { UnregisterHotKey(Handle, HOTKEY_ID3); } catch { }
         }
 
         private static Keys ParseKey(string name)
@@ -1214,10 +1154,6 @@ namespace ArcticJoiner
         private void ApplyHotkey()
         {
             UnregisterHotkey();
-            if (_changeQuickKeyButton != null)
-            {
-                _changeQuickKeyButton.Text = "Change quick-join key (" + QuickDescription() + ")...";
-            }
             // The checkbox simply enables/disables the global hotkey.
             if (!_settings.InstantHotkeyJoin)
             {
@@ -1236,11 +1172,6 @@ namespace ArcticJoiner
             if (key2 != Keys.None)
             {
                 RegisterHotKey(Handle, HOTKEY_ID2, (uint)_settings.DeleteMods, (uint)key2);
-            }
-            Keys key3 = ParseKey(_settings.QuickKey);
-            if (key3 != Keys.None)
-            {
-                RegisterHotKey(Handle, HOTKEY_ID3, (uint)_settings.QuickMods, (uint)key3);
             }
             if (_hotkeyLabel != null)
             {
@@ -1308,14 +1239,7 @@ namespace ArcticJoiner
                     if (e.Alt) mods |= 1;
                     string label;
                     string desc;
-                    if (_captureTarget == 3)
-                    {
-                        _settings.QuickMods = mods;
-                        _settings.QuickKey = e.KeyCode.ToString();
-                        label = "Quick-join key";
-                        desc = QuickDescription();
-                    }
-                    else if (_captureTarget == 2)
+                    if (_captureTarget == 2)
                     {
                         _settings.DeleteMods = mods;
                         _settings.DeleteKey = e.KeyCode.ToString();
@@ -1812,25 +1736,6 @@ namespace ArcticJoiner
             form.Show(this);
         }
 
-        private void ShowQuickJoin()
-        {
-            if (_captureHotkey) return;
-            if (_history.Count == 0)
-            {
-                Show();
-                Activate();
-                SetStatus("No recent servers to quick-join yet - join a game first.", true);
-                return;
-            }
-            if (_quickForm != null && !_quickForm.IsDisposed)
-            {
-                try { _quickForm.Focus(); } catch { }
-                return;
-            }
-            _quickForm = new QuickJoinForm(_history, HistoryDisplay, (raw) => TryJoin(raw, closeAfter: false));
-            _quickForm.Show(this);
-        }
-
         // Watches the Roblox client; if it closes while armed, rejoins the last server.
         private void StartRejoinWatch()
         {
@@ -2018,15 +1923,6 @@ namespace ArcticJoiner
             _robloxWasRunning = running;
         }
 
-        private string QuickDescription()
-        {
-            string mods = "";
-            if ((_settings.QuickMods & 2) != 0) mods += "Ctrl+";
-            if ((_settings.QuickMods & 4) != 0) mods += "Shift+";
-            if ((_settings.QuickMods & 1) != 0) mods += "Alt+";
-            return mods + _settings.QuickKey;
-        }
-
         private void UpdatePrevButton()
         {
             if (_prevButton == null) return;
@@ -2046,80 +1942,6 @@ namespace ArcticJoiner
 
 namespace ArcticJoiner
 {
-    // A small always-on-top popup listing your recent servers, joined with a
-    // number key (1-9) or a click. Opened from the quick-join hotkey.
-    internal sealed class QuickJoinForm : Form
-    {
-        private readonly List<string> _links = new List<string>();
-        private readonly int _openedTick;
-
-        public QuickJoinForm(IList<string> links, Func<string, string> display, Action<string> onPick)
-        {
-            int count = links == null ? 0 : (links.Count > 9 ? 9 : links.Count);
-            for (int i = 0; i < count; i++) _links.Add(links[i]);
-
-            Text = "Quick join";
-            FormBorderStyle = FormBorderStyle.FixedToolWindow;
-            ControlBox = false;
-            MinimizeBox = false;
-            MaximizeBox = false;
-            StartPosition = FormStartPosition.CenterScreen;
-            TopMost = true;
-            KeyPreview = true;
-            ClientSize = new Size(460, 42 + _links.Count * 36);
-            _openedTick = Environment.TickCount;
-
-            var title = new Label
-            {
-                Text = "Quick join - press 1-" + _links.Count + ", click, or Esc to close",
-                AutoSize = false,
-                Size = new Size(444, 18),
-                Location = new Point(8, 8),
-                ForeColor = SystemColors.ControlDarkDark
-            };
-            Controls.Add(title);
-
-            for (int i = 0; i < _links.Count; i++)
-            {
-                string raw = _links[i];
-                string label = (i + 1) + ".  " + (display != null ? display(raw) : raw);
-                var btn = new Button
-                {
-                    Text = label,
-                    Location = new Point(8, 30 + i * 36),
-                    Size = new Size(444, 30),
-                    TextAlign = ContentAlignment.MiddleLeft,
-                    Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
-                };
-                btn.Click += (s, e) =>
-                {
-                    Close();
-                    if (onPick != null) onPick(raw);
-                };
-                Controls.Add(btn);
-            }
-
-            KeyDown += (s, e) =>
-            {
-                if (e.KeyCode == Keys.Escape) { Close(); return; }
-                int n = -1;
-                if (e.KeyCode >= Keys.D1 && e.KeyCode <= Keys.D9) n = e.KeyCode - Keys.D1 + 1;
-                else if (e.KeyCode >= Keys.NumPad1 && e.KeyCode <= Keys.NumPad9) n = e.KeyCode - Keys.NumPad1 + 1;
-                if (n >= 1 && n <= _links.Count)
-                {
-                    string raw = _links[n - 1];
-                    Close();
-                    if (onPick != null) onPick(raw);
-                }
-            };
-
-            Deactivate += (s, e) =>
-            {
-                if (Environment.TickCount - _openedTick > 300) Close();
-            };
-        }
-    }
-
     // Lists a game's public servers with player counts; join any of them.
     internal sealed class ServerBrowserForm : Form
     {
@@ -2555,7 +2377,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "2.8.1";
+        public const string Version = "2.8.2";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.

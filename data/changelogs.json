@@ -1,6 +1,13 @@
 [
   {
     "date": "2026-10-03",
+    "title": "Windows app v2.8.2: removed start-minimized and quick-join",
+    "items": [
+      "Removed the Start minimized option and the quick-join popup with its hotkey and settings; the app keeps the join hotkey, extract key, Prev Server, Clear history, auto-rejoin, server browser, and game watchlist."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "title": "Windows app v2.8.1: easier history removal, clearer key changes",
     "items": [
       "Removed the Next Server button.",

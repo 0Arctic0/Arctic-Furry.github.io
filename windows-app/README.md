@@ -92,12 +92,8 @@ build through `ArcticJoiner.csproj`.
   menu can remove individual recent servers or clear them all.
 - **Auto-rejoin:** optionally rejoin your last server automatically if Roblox
   closes or crashes.
-- **Quick-join popup (default Ctrl+Shift+J, customizable):** a small popup of
-  your recent servers - press 1-9 or click to join.
 - **Server browser (in-app):** the Servers button lists a game's public servers
   with player counts - join any, or join the emptiest.
-- **Start minimized:** optionally start hidden in the tray instead of showing
-  the window on launch.
 - **Game watchlist:** watch games for open slots - get a tray balloon when a slot
   frees up, and optionally auto-join the emptiest open server. Manage it from the
   Watch games window (tray menu).
