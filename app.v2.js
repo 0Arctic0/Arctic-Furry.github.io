@@ -1469,6 +1469,13 @@
     const list = byId('changelog-list');
     const status = byId('changelog-status');
     if (!list || !status) return;
+    const appVersion = byId('app-version');
+    if (appVersion) {
+      fetch('../windows-app/version.txt?v=' + Date.now(), { cache: 'no-store' })
+        .then(function (r) { return r.ok ? r.text() : Promise.reject(new Error('no version file')); })
+        .then(function (text) { appVersion.textContent = 'v' + String(text || '').trim(); })
+        .catch(function () { appVersion.textContent = 'unknown'; });
+    }
     try {
       const entries = await fetchJsonFile('data/changelogs.json');
       list.innerHTML = entries.map(function (entry) {

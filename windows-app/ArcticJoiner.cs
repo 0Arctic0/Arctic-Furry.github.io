@@ -97,6 +97,8 @@ namespace ArcticJoiner
         public bool AutoRejoin = false;   // rejoin the last server if Roblox closes
         public int QuickMods = 6;         // quick-join popup hotkey: Ctrl+Shift
         public string QuickKey = "J";
+        public bool StartWithWindows = false; // launch Arctic Joiner at sign-in
+        public bool StartMinimized = false;   // start hidden in the tray
 
         private static string SettingsFile
         {
@@ -148,6 +150,8 @@ namespace ArcticJoiner
                         else if (key == "autoRejoin") s.AutoRejoin = val == "1";
                         else if (key == "quickMods") { int n; if (int.TryParse(val, out n)) s.QuickMods = n; }
                         else if (key == "quickKey") s.QuickKey = val.Length > 0 ? val : "J";
+                        else if (key == "startWithWindows") s.StartWithWindows = val == "1";
+                        else if (key == "startMinimized") s.StartMinimized = val == "1";
                     }
                 }
             }
@@ -174,6 +178,8 @@ namespace ArcticJoiner
                     .AppendLine("autoRejoin=" + (AutoRejoin ? "1" : "0"))
                     .AppendLine("quickMods=" + QuickMods)
                     .AppendLine("quickKey=" + QuickKey)
+                    .AppendLine("startWithWindows=" + (StartWithWindows ? "1" : "0"))
+                    .AppendLine("startMinimized=" + (StartMinimized ? "1" : "0"))
                     .ToString());
             }
             catch { }
@@ -220,6 +226,8 @@ namespace ArcticJoiner
         private readonly Button _serversButton;
         private readonly CheckBox _rejoinCheck;
         private readonly Button _changeQuickKeyButton;
+        private readonly CheckBox _startWithWindowsCheck;
+        private readonly CheckBox _startMinimizedCheck;
         private readonly List<string> _history = new List<string>();
         private ToolTip _prevTip;
         private NotifyIcon _tray;
@@ -427,7 +435,7 @@ namespace ArcticJoiner
             _openSettingsButton.Click += (s, e) =>
             {
                 _settingsPanel.Visible = !_settingsPanel.Visible;
-                ClientSize = new Size(ClientSize.Width, _settingsPanel.Visible ? 525 : 235);
+                ClientSize = new Size(ClientSize.Width, _settingsPanel.Visible ? 583 : 235);
             };
 
             _updateButton = new Button
@@ -444,7 +452,7 @@ namespace ArcticJoiner
             _settingsPanel = new Panel
             {
                 Location = new Point(16, 195),
-                Size = new Size(588, 322),
+                Size = new Size(588, 380),
                 Visible = false
             };
 
@@ -597,6 +605,33 @@ namespace ArcticJoiner
                 SetStatus("Press the new quick-join key now (Esc to cancel)...", false);
             };
 
+            _startWithWindowsCheck = new CheckBox
+            {
+                Text = "Start with Windows (keeps the hotkeys ready after sign-in)",
+                Checked = GetStartWithWindows(),
+                AutoSize = true,
+                Location = new Point(0, 322)
+            };
+            _startWithWindowsCheck.CheckedChanged += (s, e) =>
+            {
+                _settings.StartWithWindows = _startWithWindowsCheck.Checked;
+                _settings.Save();
+                SetStartWithWindows(_startWithWindowsCheck.Checked);
+            };
+
+            _startMinimizedCheck = new CheckBox
+            {
+                Text = "Start minimized to the tray (no window on launch)",
+                Checked = _settings.StartMinimized,
+                AutoSize = true,
+                Location = new Point(0, 348)
+            };
+            _startMinimizedCheck.CheckedChanged += (s, e) =>
+            {
+                _settings.StartMinimized = _startMinimizedCheck.Checked;
+                _settings.Save();
+            };
+
             _changeHotkeyButton = new Button
             {
                 Text = "Change hotkey (" + HotkeyDescription() + ")...",
@@ -653,6 +688,8 @@ namespace ArcticJoiner
             _settingsPanel.Controls.Add(revertFlagsButton);
             _settingsPanel.Controls.Add(_rejoinCheck);
             _settingsPanel.Controls.Add(_changeQuickKeyButton);
+            _settingsPanel.Controls.Add(_startWithWindowsCheck);
+            _settingsPanel.Controls.Add(_startMinimizedCheck);
             _settingsPanel.Controls.Add(_extractLabel);
             _settingsPanel.Controls.Add(changeDeleteKeyButton);
             _settingsPanel.Controls.Add(hint);
@@ -680,7 +717,21 @@ namespace ArcticJoiner
             // silently drop the result), and re-check every 15 minutes so
             // long-running tray sessions still see new updates.
             CleanupOldBinary();
-            Shown += (s, e) => CheckForUpdatesAsync(false);
+            Shown += (s, e) =>
+            {
+                CheckForUpdatesAsync(false);
+                if (_settings.StartMinimized)
+                {
+                    // Start hidden in the tray; the balloon explains how to open it.
+                    Hide();
+                    if (!_trayTipShown && _tray != null)
+                    {
+                        _trayTipShown = true;
+                        _tray.ShowBalloonTip(2500, "Arctic Joiner",
+                            "Running in the tray. Left-click the icon to open, right-click to exit.", ToolTipIcon.Info);
+                    }
+                }
+            };
             _updateTimer = new System.Windows.Forms.Timer { Interval = 900000 };
             _updateTimer.Tick += (s, e) => CheckForUpdatesAsync(false);
             _updateTimer.Start();
@@ -1810,6 +1861,35 @@ namespace ArcticJoiner
             if (!_rejoinTimer.Enabled) _rejoinTimer.Start();
         }
 
+        private static readonly string WindowsRunKey = "Software\\Microsoft\\Windows\\CurrentVersion\\Run";
+
+        // Adds/removes the app's Run entry so it launches at sign-in.
+        private static void SetStartWithWindows(bool enable)
+        {
+            try
+            {
+                using (var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(WindowsRunKey, true))
+                {
+                    if (key == null) return;
+                    if (enable) key.SetValue("ArcticJoiner", "\"" + Application.ExecutablePath + "\"");
+                    else key.DeleteValue("ArcticJoiner", false);
+                }
+            }
+            catch { }
+        }
+
+        private static bool GetStartWithWindows()
+        {
+            try
+            {
+                using (var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(WindowsRunKey, false))
+                {
+                    return key != null && key.GetValue("ArcticJoiner") != null;
+                }
+            }
+            catch { return false; }
+        }
+
         private static bool IsRobloxRunning()
         {
             try { return Process.GetProcessesByName("RobloxPlayerBeta").Length > 0; }
@@ -2223,7 +2303,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "2.7.0";
+        public const string Version = "2.7.1";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.

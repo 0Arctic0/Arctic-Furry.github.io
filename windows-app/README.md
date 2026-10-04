@@ -96,6 +96,8 @@ build through `ArcticJoiner.csproj`.
   your recent servers - press 1-9 or click to join.
 - **Server browser (in-app):** the Servers button lists a game's public servers
   with player counts - join any, or join the emptiest.
+- **Start with Windows / start minimized:** keep the hotkeys ready after sign-in,
+  and optionally start hidden in the tray instead of showing the window.
 - **User sniping moved to the website:** open `/snipe` on the site, type a
   username or user ID, and it finds their exact public server and gives you a
   one-tap roblox:// join. (Removed from the desktop app to keep it lean.)
