@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-03",
+    "title": "Windows app v2.7.0: server hop, auto-rejoin, quick-join, server browser",
+    "items": [
+      "Next Server (server hop): one click rejoins the same game on a fresh, emptier server.",
+      "Auto-rejoin: optionally rejoin your last server automatically if Roblox closes or crashes.",
+      "Quick-join popup (Ctrl+Shift+J, customizable): a small popup of recent servers you can join with 1-9 or a click.",
+      "Servers button: an in-app server browser with live player counts, Join Selected, and Join Emptiest."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "title": "New /hop page",
     "items": [
       "Added /hop: paste a game and hop into a different public server on demand - pick the emptiest server or let it keep hopping every 30 seconds."

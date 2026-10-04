@@ -94,6 +94,9 @@ namespace ArcticJoiner
         public string DeleteKey = "Delete";
         public bool AlwaysOnTop = false;
         public bool KillBeforeJoin = true;
+        public bool AutoRejoin = false;   // rejoin the last server if Roblox closes
+        public int QuickMods = 6;         // quick-join popup hotkey: Ctrl+Shift
+        public string QuickKey = "J";
 
         private static string SettingsFile
         {
@@ -142,6 +145,9 @@ namespace ArcticJoiner
                         else if (key == "deleteKey") s.DeleteKey = val.Length > 0 ? val : "Delete";
                         else if (key == "alwaysOnTop") s.AlwaysOnTop = val == "1";
                         else if (key == "killBeforeJoin") s.KillBeforeJoin = val == "1";
+                        else if (key == "autoRejoin") s.AutoRejoin = val == "1";
+                        else if (key == "quickMods") { int n; if (int.TryParse(val, out n)) s.QuickMods = n; }
+                        else if (key == "quickKey") s.QuickKey = val.Length > 0 ? val : "J";
                     }
                 }
             }
@@ -165,12 +171,27 @@ namespace ArcticJoiner
                     .AppendLine("deleteKey=" + DeleteKey)
                     .AppendLine("alwaysOnTop=" + (AlwaysOnTop ? "1" : "0"))
                     .AppendLine("killBeforeJoin=" + (KillBeforeJoin ? "1" : "0"))
+                    .AppendLine("autoRejoin=" + (AutoRejoin ? "1" : "0"))
+                    .AppendLine("quickMods=" + QuickMods)
+                    .AppendLine("quickKey=" + QuickKey)
                     .ToString());
             }
             catch { }
         }
     }
 
+    // One public server of a game, as returned by the servers/Public API.
+    internal sealed class ServerInfo
+    {
+        public string Id;
+        public int Playing;
+        public int MaxPlayers;
+
+        public override string ToString()
+        {
+            return Playing + " / " + MaxPlayers + " players  -  " + Id;
+        }
+    }
 }
 
 namespace ArcticJoiner
@@ -195,6 +216,10 @@ namespace ArcticJoiner
         private readonly Label _hotkeyLabel;
         private readonly Label _extractLabel;
         private readonly Button _changeHotkeyButton;
+        private readonly Button _nextButton;
+        private readonly Button _serversButton;
+        private readonly CheckBox _rejoinCheck;
+        private readonly Button _changeQuickKeyButton;
         private readonly List<string> _history = new List<string>();
         private ToolTip _prevTip;
         private NotifyIcon _tray;
@@ -207,7 +232,14 @@ namespace ArcticJoiner
         private const int WM_HOTKEY = 0x0312;
         private const int HOTKEY_ID = 1;
         private const int HOTKEY_ID2 = 2; // extract-link keybind (Delete)
+        private const int HOTKEY_ID3 = 3; // quick-join popup
         private string _lastAutoJoined = "";
+        private string _lastJoinLink = "";
+        private string _lastJoinPlaceId = null;
+        private bool _rejoinArmed;
+        private bool _robloxWasRunning;
+        private System.Windows.Forms.Timer _rejoinTimer;
+        private QuickJoinForm _quickForm;
 
         public JoinerForm(Settings settings)
         {
@@ -274,7 +306,7 @@ namespace ArcticJoiner
             {
                 Text = "Join",
                 Location = new Point(16, 100),
-                Size = new Size(120, 34),
+                Size = new Size(110, 34),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left
             };
             _joinButton.Click += (s, e) => TryJoin(_linkBox.Text, closeAfter: false);
@@ -282,8 +314,8 @@ namespace ArcticJoiner
             _prevButton = new Button
             {
                 Text = "Prev Server",
-                Location = new Point(146, 103),
-                Size = new Size(150, 28),
+                Location = new Point(134, 103),
+                Size = new Size(130, 28),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left
             };
             _prevTip = new ToolTip();
@@ -304,6 +336,24 @@ namespace ArcticJoiner
                 }
             };
             UpdatePrevButton();
+
+            _nextButton = new Button
+            {
+                Text = "Next Server",
+                Location = new Point(272, 103),
+                Size = new Size(120, 28),
+                Anchor = AnchorStyles.Top | AnchorStyles.Left
+            };
+            _nextButton.Click += (s, e) => HopToNewServer();
+
+            _serversButton = new Button
+            {
+                Text = "Servers",
+                Location = new Point(400, 103),
+                Size = new Size(90, 28),
+                Anchor = AnchorStyles.Top | AnchorStyles.Left
+            };
+            _serversButton.Click += (s, e) => OpenServerBrowser();
 
             _status = new Label
             {
@@ -369,15 +419,15 @@ namespace ArcticJoiner
 
             _openSettingsButton = new Button
             {
-                Text = "Froststrap settings",
-                Location = new Point(306, 103),
-                Size = new Size(140, 28),
+                Text = "Settings",
+                Location = new Point(498, 103),
+                Size = new Size(106, 28),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left
             };
             _openSettingsButton.Click += (s, e) =>
             {
                 _settingsPanel.Visible = !_settingsPanel.Visible;
-                ClientSize = new Size(ClientSize.Width, _settingsPanel.Visible ? 455 : 235);
+                ClientSize = new Size(ClientSize.Width, _settingsPanel.Visible ? 525 : 235);
             };
 
             _updateButton = new Button
@@ -394,7 +444,7 @@ namespace ArcticJoiner
             _settingsPanel = new Panel
             {
                 Location = new Point(16, 195),
-                Size = new Size(588, 262),
+                Size = new Size(588, 322),
                 Visible = false
             };
 
@@ -453,7 +503,7 @@ namespace ArcticJoiner
             {
                 Text = "Tip: empty Froststrap box = the roblox:// handler is used (Froststrap, if registered).",
                 AutoSize = false,
-                Size = new Size(588, 60),
+                Size = new Size(588, 30),
                 Location = new Point(0, 196),
                 ForeColor = SystemColors.GrayText
             };
@@ -498,7 +548,7 @@ namespace ArcticJoiner
             var fastFlagsButton = new Button
             {
                 Text = "Apply fast flags (faster launch)",
-                Location = new Point(0, 210),
+                Location = new Point(0, 232),
                 Size = new Size(220, 26)
             };
             fastFlagsButton.Click += (s, e) =>
@@ -509,12 +559,42 @@ namespace ArcticJoiner
             var revertFlagsButton = new Button
             {
                 Text = "Revert fast flags",
-                Location = new Point(230, 210),
+                Location = new Point(230, 232),
                 Size = new Size(120, 26)
             };
             revertFlagsButton.Click += (s, e) =>
             {
                 RevertFastFlags();
+            };
+
+            _rejoinCheck = new CheckBox
+            {
+                Text = "Auto-rejoin if Roblox closes or crashes",
+                Checked = _settings.AutoRejoin,
+                AutoSize = true,
+                Location = new Point(0, 264)
+            };
+            _rejoinCheck.CheckedChanged += (s, e) =>
+            {
+                _settings.AutoRejoin = _rejoinCheck.Checked;
+                _settings.Save();
+                if (_rejoinCheck.Checked) StartRejoinWatch();
+                else { _rejoinArmed = false; if (_rejoinTimer != null) _rejoinTimer.Stop(); }
+            };
+
+            _changeQuickKeyButton = new Button
+            {
+                Text = "Change quick-join key (" + QuickDescription() + ")...",
+                Location = new Point(0, 290),
+                Size = new Size(320, 26)
+            };
+            _changeQuickKeyButton.Click += (s, e) =>
+            {
+                _captureHotkey = true;
+                _captureTarget = 3;
+                UnregisterHotkey();
+                ActiveControl = _changeQuickKeyButton;
+                SetStatus("Press the new quick-join key now (Esc to cancel)...", false);
             };
 
             _changeHotkeyButton = new Button
@@ -571,6 +651,8 @@ namespace ArcticJoiner
             _settingsPanel.Controls.Add(_changeHotkeyButton);
             _settingsPanel.Controls.Add(fastFlagsButton);
             _settingsPanel.Controls.Add(revertFlagsButton);
+            _settingsPanel.Controls.Add(_rejoinCheck);
+            _settingsPanel.Controls.Add(_changeQuickKeyButton);
             _settingsPanel.Controls.Add(_extractLabel);
             _settingsPanel.Controls.Add(changeDeleteKeyButton);
             _settingsPanel.Controls.Add(hint);
@@ -583,6 +665,8 @@ namespace ArcticJoiner
             Controls.Add(_closeAfterCheck);
             Controls.Add(_openSettingsButton);
             Controls.Add(_prevButton);
+            Controls.Add(_nextButton);
+            Controls.Add(_serversButton);
             Controls.Add(_onTopCheck);
             Controls.Add(_killCheck);
             Controls.Add(_settingsPanel);
@@ -605,6 +689,7 @@ namespace ArcticJoiner
             KeyPreview = true;
             BuildTrayIcon();
             ApplyHotkey();
+            if (_settings.AutoRejoin) StartRejoinWatch();
 
             // Poll the incoming-link queue so a second instance's link is
             // picked up by this one.
@@ -712,8 +797,14 @@ namespace ArcticJoiner
                 return false;
             }
 
+            // Remember this join for "Next Server" and auto-rejoin.
+            _lastJoinLink = deepLink;
+            string joinedPlace = PlaceIdOf(deepLink);
+            if (joinedPlace != null) _lastJoinPlaceId = joinedPlace;
+
             try
             {
+                _rejoinArmed = false; // pause auto-rejoin while we intentionally swap clients
                 // Close any running Roblox/Froststrap first so the new join does
                 // not stack a second client in the taskbar.
                 if (_settings.KillBeforeJoin)
@@ -740,6 +831,12 @@ namespace ArcticJoiner
                 }
 
                 RecordHistory(raw);
+
+                if (_settings.AutoRejoin)
+                {
+                    _rejoinArmed = true;
+                    _robloxWasRunning = IsRobloxRunning();
+                }
 
                 // Fetch the game's name and show a toast so you know what launched.
                 System.Threading.Tasks.Task.Run((Action)(() => FetchGameNameAndToast(deepLink)));
@@ -968,6 +1065,7 @@ namespace ArcticJoiner
             UnregisterHotkey();
             if (_updateTimer != null) _updateTimer.Stop();
             if (_queueTimer != null) _queueTimer.Stop();
+            if (_rejoinTimer != null) _rejoinTimer.Stop();
             if (_tray != null) _tray.Dispose();
             base.OnFormClosing(e);
         }
@@ -984,6 +1082,7 @@ namespace ArcticJoiner
             {
                 if ((int)m.WParam == HOTKEY_ID) OnHotkey();
                 else if ((int)m.WParam == HOTKEY_ID2) OnExtractHotkey();
+                else if ((int)m.WParam == HOTKEY_ID3) ShowQuickJoin();
             }
             base.WndProc(ref m);
         }
@@ -992,6 +1091,7 @@ namespace ArcticJoiner
         {
             try { UnregisterHotKey(Handle, HOTKEY_ID); } catch { }
             try { UnregisterHotKey(Handle, HOTKEY_ID2); } catch { }
+            try { UnregisterHotKey(Handle, HOTKEY_ID3); } catch { }
         }
 
         private static Keys ParseKey(string name)
@@ -1058,6 +1158,10 @@ namespace ArcticJoiner
         private void ApplyHotkey()
         {
             UnregisterHotkey();
+            if (_changeQuickKeyButton != null)
+            {
+                _changeQuickKeyButton.Text = "Change quick-join key (" + QuickDescription() + ")...";
+            }
             // The checkbox simply enables/disables the global hotkey.
             if (!_settings.InstantHotkeyJoin)
             {
@@ -1076,6 +1180,11 @@ namespace ArcticJoiner
             if (key2 != Keys.None)
             {
                 RegisterHotKey(Handle, HOTKEY_ID2, (uint)_settings.DeleteMods, (uint)key2);
+            }
+            Keys key3 = ParseKey(_settings.QuickKey);
+            if (key3 != Keys.None)
+            {
+                RegisterHotKey(Handle, HOTKEY_ID3, (uint)_settings.QuickMods, (uint)key3);
             }
             if (_hotkeyLabel != null)
             {
@@ -1140,21 +1249,33 @@ namespace ArcticJoiner
                     if (e.Control) mods |= 2;
                     if (e.Shift) mods |= 4;
                     if (e.Alt) mods |= 1;
-                    if (_captureTarget == 2)
+                    string label;
+                    string desc;
+                    if (_captureTarget == 3)
+                    {
+                        _settings.QuickMods = mods;
+                        _settings.QuickKey = e.KeyCode.ToString();
+                        label = "Quick-join key";
+                        desc = QuickDescription();
+                    }
+                    else if (_captureTarget == 2)
                     {
                         _settings.DeleteMods = mods;
                         _settings.DeleteKey = e.KeyCode.ToString();
+                        label = "Extract keybind";
+                        desc = DeleteDescription();
                     }
                     else
                     {
                         _settings.HotkeyMods = mods;
                         _settings.HotkeyKey = e.KeyCode.ToString();
+                        label = "Hotkey";
+                        desc = HotkeyDescription();
                     }
                     _settings.Save(); // saved immediately, no extra step
                     _captureHotkey = false;
                     ApplyHotkey();
-                    SetStatus((_captureTarget == 2 ? "Extract keybind" : "Hotkey") +
-                        " set to " + (_captureTarget == 2 ? DeleteDescription() : HotkeyDescription()) + " and saved.", false);
+                    SetStatus(label + " set to " + desc + " and saved.", false);
                 }
                 return;
             }
@@ -1395,6 +1516,82 @@ namespace ArcticJoiner
             catch { return null; }
         }
 
+        // Fetches every public server of a place (id + player counts) via the
+        // roproxy mirror. Returns an empty list on any failure.
+        internal static List<ServerInfo> FetchServers(string placeId)
+        {
+            var list = new List<ServerInfo>();
+            try
+            {
+                using (var wc = new System.Net.WebClient())
+                {
+                    wc.Headers.Add("User-Agent", "ArcticJoiner");
+                    string json = wc.DownloadString(
+                        "https://games.roproxy.com/v1/games/" + placeId + "/servers/Public?limit=100");
+                    foreach (string chunk in json.Split(new string[] { "\"id\":\"" }, StringSplitOptions.None))
+                    {
+                        int q = chunk.IndexOf('"');
+                        if (q <= 0) continue;
+                        string id = chunk.Substring(0, q);
+                        if (!IsServerId(id)) continue;
+                        list.Add(new ServerInfo
+                        {
+                            Id = id,
+                            Playing = ExtractInt(chunk, "\"playing\":"),
+                            MaxPlayers = ExtractInt(chunk, "\"maxPlayers\":")
+                        });
+                    }
+                }
+            }
+            catch { }
+            return list;
+        }
+
+        // Server ids are GUIDs; player ids in the same payload are numbers, so
+        // this keeps us from mistaking players for servers.
+        internal static bool IsServerId(string value)
+        {
+            if (value == null || value.Length != 36) return false;
+            foreach (char c in value)
+            {
+                bool hex = char.IsDigit(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+                if (!hex && c != '-') return false;
+            }
+            return true;
+        }
+
+        internal static int ExtractInt(string text, string key)
+        {
+            int i = text.IndexOf(key, StringComparison.Ordinal);
+            if (i < 0) return 0;
+            i += key.Length;
+            int j = i;
+            while (j < text.Length && char.IsDigit(text[j])) j++;
+            int n;
+            return int.TryParse(text.Substring(i, j - i), out n) ? n : 0;
+        }
+
+        // The least-full server that still has room, or null.
+        internal static ServerInfo PickEmptiest(List<ServerInfo> servers)
+        {
+            ServerInfo best = null;
+            foreach (ServerInfo s in servers)
+            {
+                if (s.MaxPlayers > 0 && s.Playing >= s.MaxPlayers) continue;
+                if (best == null || s.Playing < best.Playing) best = s;
+            }
+            return best;
+        }
+
+        // Pulls the placeId out of any link/deep link we have stored.
+        internal static string PlaceIdOf(string text)
+        {
+            var m = System.Text.RegularExpressions.Regex.Match(text ?? "", "placeId=(\\d+)");
+            if (m.Success) return m.Groups[1].Value;
+            m = System.Text.RegularExpressions.Regex.Match(text ?? "", "/games/(\\d+)");
+            return m.Success ? m.Groups[1].Value : null;
+        }
+
         private void FetchGameNameAndToast(string deepLink)
         {
             try
@@ -1531,6 +1728,118 @@ namespace ArcticJoiner
             return server.Length > 0 ? name + " (server " + ShortId(server) + ")" : name;
         }
 
+        private string CurrentPlaceId()
+        {
+            string p = PlaceIdOf(_linkBox.Text);
+            if (p != null) return p;
+            if (_lastJoinPlaceId != null) return _lastJoinPlaceId;
+            if (_history.Count > 0) return PlaceIdOf(_history[0]);
+            return null;
+        }
+
+        private void HopToNewServer()
+        {
+            string placeId = CurrentPlaceId();
+            if (placeId == null)
+            {
+                SetStatus("Join a game (or paste a game link) first, then hop servers.", true);
+                return;
+            }
+            SetStatus("Finding a fresh server...", false);
+            _nextButton.Enabled = false;
+            System.Threading.Tasks.Task.Run((Action)(() =>
+            {
+                ServerInfo pick = null;
+                try { pick = PickEmptiest(FetchServers(placeId)); } catch { }
+                try
+                {
+                    Invoke((MethodInvoker)delegate
+                    {
+                        _nextButton.Enabled = true;
+                        if (pick != null)
+                        {
+                            SetStatus("Hopping to " + pick.Playing + " / " + pick.MaxPlayers + " players.", false);
+                            TryJoin("roblox://placeId=" + placeId + "&gameInstanceId=" + pick.Id, closeAfter: false);
+                        }
+                        else
+                        {
+                            // No list (or everything full) - let Roblox assign a fresh server.
+                            SetStatus("Hopping to a new server...", false);
+                            TryJoin("roblox://placeId=" + placeId, closeAfter: false);
+                        }
+                    });
+                }
+                catch { }
+            }));
+        }
+
+        private void OpenServerBrowser()
+        {
+            string placeId = CurrentPlaceId();
+            var form = new ServerBrowserForm(placeId, (deepLink) => TryJoin(deepLink, closeAfter: false));
+            form.Show(this);
+        }
+
+        private void ShowQuickJoin()
+        {
+            if (_captureHotkey) return;
+            if (_history.Count == 0)
+            {
+                Show();
+                Activate();
+                SetStatus("No recent servers to quick-join yet - join a game first.", true);
+                return;
+            }
+            if (_quickForm != null && !_quickForm.IsDisposed)
+            {
+                try { _quickForm.Focus(); } catch { }
+                return;
+            }
+            _quickForm = new QuickJoinForm(_history, HistoryDisplay, (raw) => TryJoin(raw, closeAfter: false));
+            _quickForm.Show(this);
+        }
+
+        // Watches the Roblox client; if it closes while armed, rejoins the last server.
+        private void StartRejoinWatch()
+        {
+            if (_rejoinTimer == null)
+            {
+                _rejoinTimer = new System.Windows.Forms.Timer { Interval = 4000 };
+                _rejoinTimer.Tick += (s, e) => CheckRejoin();
+            }
+            if (!_rejoinTimer.Enabled) _rejoinTimer.Start();
+        }
+
+        private static bool IsRobloxRunning()
+        {
+            try { return Process.GetProcessesByName("RobloxPlayerBeta").Length > 0; }
+            catch { return false; }
+        }
+
+        private void CheckRejoin()
+        {
+            bool running = IsRobloxRunning();
+            if (_rejoinArmed && _robloxWasRunning && !running)
+            {
+                _rejoinArmed = false; // one-shot: do not loop if it exits again
+                if (!string.IsNullOrEmpty(_lastJoinLink))
+                {
+                    SetStatus("Roblox closed - rejoining your last server...", false);
+                    TryJoin(_lastJoinLink, closeAfter: false);
+                }
+            }
+            _robloxWasRunning = running;
+        }
+
+        private string QuickDescription()
+        {
+            string mods = "";
+            if ((_settings.QuickMods & 2) != 0) mods += "Ctrl+";
+            if ((_settings.QuickMods & 4) != 0) mods += "Shift+";
+            if ((_settings.QuickMods & 1) != 0) mods += "Alt+";
+            return mods + _settings.QuickKey;
+        }
+
         private void UpdatePrevButton()
         {
             if (_prevButton == null) return;
@@ -1545,6 +1854,221 @@ namespace ArcticJoiner
             if (_prevTip != null) _prevTip.SetToolTip(_prevButton, "Rejoin: " + HistoryTargetLabel(entry));
         }
 
+    }
+}
+
+namespace ArcticJoiner
+{
+    // A small always-on-top popup listing your recent servers, joined with a
+    // number key (1-9) or a click. Opened from the quick-join hotkey.
+    internal sealed class QuickJoinForm : Form
+    {
+        private readonly List<string> _links = new List<string>();
+        private readonly int _openedTick;
+
+        public QuickJoinForm(IList<string> links, Func<string, string> display, Action<string> onPick)
+        {
+            int count = links == null ? 0 : (links.Count > 9 ? 9 : links.Count);
+            for (int i = 0; i < count; i++) _links.Add(links[i]);
+
+            Text = "Quick join";
+            FormBorderStyle = FormBorderStyle.FixedToolWindow;
+            ControlBox = false;
+            MinimizeBox = false;
+            MaximizeBox = false;
+            StartPosition = FormStartPosition.CenterScreen;
+            TopMost = true;
+            KeyPreview = true;
+            ClientSize = new Size(460, 42 + _links.Count * 36);
+            _openedTick = Environment.TickCount;
+
+            var title = new Label
+            {
+                Text = "Quick join - press 1-" + _links.Count + ", click, or Esc to close",
+                AutoSize = false,
+                Size = new Size(444, 18),
+                Location = new Point(8, 8),
+                ForeColor = SystemColors.ControlDarkDark
+            };
+            Controls.Add(title);
+
+            for (int i = 0; i < _links.Count; i++)
+            {
+                string raw = _links[i];
+                string label = (i + 1) + ".  " + (display != null ? display(raw) : raw);
+                var btn = new Button
+                {
+                    Text = label,
+                    Location = new Point(8, 30 + i * 36),
+                    Size = new Size(444, 30),
+                    TextAlign = ContentAlignment.MiddleLeft,
+                    Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
+                };
+                btn.Click += (s, e) =>
+                {
+                    Close();
+                    if (onPick != null) onPick(raw);
+                };
+                Controls.Add(btn);
+            }
+
+            KeyDown += (s, e) =>
+            {
+                if (e.KeyCode == Keys.Escape) { Close(); return; }
+                int n = -1;
+                if (e.KeyCode >= Keys.D1 && e.KeyCode <= Keys.D9) n = e.KeyCode - Keys.D1 + 1;
+                else if (e.KeyCode >= Keys.NumPad1 && e.KeyCode <= Keys.NumPad9) n = e.KeyCode - Keys.NumPad1 + 1;
+                if (n >= 1 && n <= _links.Count)
+                {
+                    string raw = _links[n - 1];
+                    Close();
+                    if (onPick != null) onPick(raw);
+                }
+            };
+
+            Deactivate += (s, e) =>
+            {
+                if (Environment.TickCount - _openedTick > 300) Close();
+            };
+        }
+    }
+
+    // Lists a game's public servers with player counts; join any of them.
+    internal sealed class ServerBrowserForm : Form
+    {
+        private readonly TextBox _placeBox;
+        private readonly Button _loadBtn;
+        private readonly Label _status;
+        private readonly ListBox _list;
+        private readonly Button _joinBtn;
+        private readonly Button _emptiestBtn;
+        private readonly Button _refreshBtn;
+        private readonly Action<string> _onJoin;
+        private readonly List<ServerInfo> _servers = new List<ServerInfo>();
+        private string _placeId;
+
+        public ServerBrowserForm(string initialPlaceId, Action<string> onJoin)
+        {
+            _onJoin = onJoin;
+            _placeId = initialPlaceId;
+
+            Text = "Server Browser";
+            FormBorderStyle = FormBorderStyle.Sizable;
+            StartPosition = FormStartPosition.CenterScreen;
+            ClientSize = new Size(560, 470);
+
+            var label = new Label { Text = "Place ID or game link:", AutoSize = true, Location = new Point(12, 14) };
+            _placeBox = new TextBox { Location = new Point(12, 34), Width = 400, Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right };
+            _loadBtn = new Button { Text = "Load", Location = new Point(420, 32), Size = new Size(128, 25), Anchor = AnchorStyles.Top | AnchorStyles.Right };
+            _status = new Label { Location = new Point(12, 66), Size = new Size(536, 18), Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right };
+            _list = new ListBox
+            {
+                Location = new Point(12, 90),
+                Size = new Size(536, 320),
+                Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
+            };
+            _joinBtn = new Button { Text = "Join Selected", Location = new Point(12, 418), Size = new Size(170, 32), Anchor = AnchorStyles.Bottom | AnchorStyles.Left };
+            _emptiestBtn = new Button { Text = "Join Emptiest", Location = new Point(194, 418), Size = new Size(170, 32), Anchor = AnchorStyles.Bottom | AnchorStyles.Left };
+            _refreshBtn = new Button { Text = "Refresh", Location = new Point(376, 418), Size = new Size(172, 32), Anchor = AnchorStyles.Bottom | AnchorStyles.Left };
+
+            Controls.Add(label);
+            Controls.Add(_placeBox);
+            Controls.Add(_loadBtn);
+            Controls.Add(_status);
+            Controls.Add(_list);
+            Controls.Add(_joinBtn);
+            Controls.Add(_emptiestBtn);
+            Controls.Add(_refreshBtn);
+
+            if (!string.IsNullOrEmpty(initialPlaceId)) _placeBox.Text = initialPlaceId;
+
+            _loadBtn.Click += (s, e) => LoadServers();
+            _refreshBtn.Click += (s, e) => LoadServers();
+            _placeBox.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) { e.SuppressKeyPress = true; LoadServers(); } };
+            _joinBtn.Click += (s, e) => JoinSelected();
+            _emptiestBtn.Click += (s, e) => JoinEmptiest();
+            _list.DoubleClick += (s, e) => JoinSelected();
+
+            if (!string.IsNullOrEmpty(_placeId)) Shown += (s, e) => LoadServers();
+        }
+
+        private void SetStatus(string text, bool error)
+        {
+            _status.Text = text;
+            _status.ForeColor = error ? Color.Firebrick : SystemColors.ControlText;
+        }
+
+        private static bool AllDigits(string text)
+        {
+            if (text.Length == 0) return false;
+            foreach (char c in text) if (!char.IsDigit(c)) return false;
+            return true;
+        }
+
+        private string ParsePlaceId()
+        {
+            string p = JoinerForm.PlaceIdOf(_placeBox.Text);
+            if (p == null)
+            {
+                string t = (_placeBox.Text ?? "").Trim();
+                if (t.Length > 0 && AllDigits(t)) p = t;
+            }
+            return p;
+        }
+
+        private void LoadServers()
+        {
+            string placeId = ParsePlaceId();
+            if (placeId == null) { SetStatus("Enter a place ID or a Roblox game link first.", true); return; }
+            _placeId = placeId;
+            _loadBtn.Enabled = false;
+            SetStatus("Loading servers...", false);
+            System.Threading.Tasks.Task.Run((Action)(() =>
+            {
+                var servers = JoinerForm.FetchServers(placeId);
+                try
+                {
+                    Invoke((MethodInvoker)delegate
+                    {
+                        _loadBtn.Enabled = true;
+                        _servers.Clear();
+                        _servers.AddRange(servers);
+                        _list.Items.Clear();
+                        foreach (ServerInfo sv in _servers)
+                        {
+                            _list.Items.Add(sv.Playing + " / " + sv.MaxPlayers + " players   -   " + sv.Id);
+                        }
+                        SetStatus(_servers.Count == 0
+                            ? "No public servers right now - try again in a moment."
+                            : "Showing " + _servers.Count + " public servers. Double-click one to join.", _servers.Count == 0);
+                    });
+                }
+                catch { }
+            }));
+        }
+
+        private void JoinServer(string serverId)
+        {
+            if (_onJoin != null && _placeId != null)
+            {
+                _onJoin("roblox://placeId=" + _placeId + "&gameInstanceId=" + serverId);
+            }
+        }
+
+        private void JoinSelected()
+        {
+            int i = _list.SelectedIndex;
+            if (i < 0 || i >= _servers.Count) { SetStatus("Pick a server first.", true); return; }
+            JoinServer(_servers[i].Id);
+        }
+
+        private void JoinEmptiest()
+        {
+            ServerInfo best = JoinerForm.PickEmptiest(_servers);
+            if (best == null) { SetStatus("Every server is full right now.", true); return; }
+            SetStatus("Joining the emptiest server: " + best.Playing + " / " + best.MaxPlayers + " players.", false);
+            JoinServer(best.Id);
+        }
     }
 }
 
@@ -1699,7 +2223,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "2.6.2";
+        public const string Version = "2.7.0";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.

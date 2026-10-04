@@ -88,6 +88,14 @@ build through `ArcticJoiner.csproj`.
 - **Prev Server** shows what it will rejoin - the button shows the game name
   and hovering gives the game and server ID. The tray menu has **Clear history**
   to wipe the recent-join list.
+- **Next Server (server hop):** one click rejoins the same game on a fresh,
+  emptier server.
+- **Auto-rejoin:** optionally rejoin your last server automatically if Roblox
+  closes or crashes.
+- **Quick-join popup (default Ctrl+Shift+J, customizable):** a small popup of
+  your recent servers - press 1-9 or click to join.
+- **Server browser (in-app):** the Servers button lists a game's public servers
+  with player counts - join any, or join the emptiest.
 - **User sniping moved to the website:** open `/snipe` on the site, type a
   username or user ID, and it finds their exact public server and gives you a
   one-tap roblox:// join. (Removed from the desktop app to keep it lean.)
