@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-03",
+    "title": "Windows app v2.9.4: richer live server window, 15s, toggle in main window",
+    "items": [
+      "The live server window now shows more about your server: players, region (via ip-api.com), ping (from Roblox), our own TCP latency to it, FPS, and the server and place ids - refreshed every 15 seconds.",
+      "It now finds the server automatically from your Roblox log when it has nothing, and re-reads the log if you hop servers outside the app.",
+      "Toggle the window from the main window with the new Live server stats checkbox (the tray menu drives it too).",
+      "Note: refresh is not 100 percent - a server with very few players may fall outside Roblox's public list, and private servers are not listed at all."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "title": "Windows app v2.9.3: live server ids read correctly + cleaner window",
     "items": [
       "The live server scan now reads the server id from the right place: the GUID in the log line \"! Joining game '<serverGuid>' place <placeId>\". The old pattern grabbed digits out of that GUID as the place id, so it matched nonsense.",

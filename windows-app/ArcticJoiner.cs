@@ -186,6 +186,8 @@ namespace ArcticJoiner
         public string Id;
         public int Playing;
         public int MaxPlayers;
+        public int Ping;      // Roblox's reported server ping
+        public double Fps;    // Roblox's reported server fps
 
         public override string ToString()
         {
@@ -205,6 +207,8 @@ namespace ArcticJoiner
         private readonly CheckBox _closeAfterCheck;
         private readonly CheckBox _onTopCheck;
         private readonly CheckBox _killCheck;
+        private readonly CheckBox _liveCheck;
+        private LiveServerForm _liveForm;
         private readonly TextBox _froststrapPathBox;
         private readonly Button _browseButton;
         private readonly Button _openSettingsButton;
@@ -422,6 +426,26 @@ namespace ArcticJoiner
             {
                 _settings.KillBeforeJoin = _killCheck.Checked;
                 _settings.Save();
+            };
+
+            _liveCheck = new CheckBox
+            {
+                Text = "Live server stats",
+                Checked = false,
+                AutoSize = true,
+                Location = new Point(240, 172)
+            };
+            _liveCheck.CheckedChanged += (s, e) =>
+            {
+                if (_liveCheck.Checked)
+                {
+                    if (_liveForm == null || _liveForm.IsDisposed) _liveForm = new LiveServerForm(this);
+                    _liveForm.Show(this);
+                }
+                else if (_liveForm != null && !_liveForm.IsDisposed)
+                {
+                    _liveForm.Close();
+                }
             };
 
             _openSettingsButton = new Button
@@ -662,6 +686,7 @@ namespace ArcticJoiner
             Controls.Add(_serversButton);
             Controls.Add(_onTopCheck);
             Controls.Add(_killCheck);
+            Controls.Add(_liveCheck);
             Controls.Add(_settingsPanel);
             Controls.Add(_updateButton);
 
@@ -1686,7 +1711,9 @@ namespace ArcticJoiner
                         {
                             Id = id,
                             Playing = ExtractInt(chunk, "\"playing\":"),
-                            MaxPlayers = ExtractInt(chunk, "\"maxPlayers\":")
+                            MaxPlayers = ExtractInt(chunk, "\"maxPlayers\":"),
+                            Ping = ExtractInt(chunk, "\"ping\":"),
+                            Fps = ExtractDouble(chunk, "\"fps\":")
                         });
                     }
                     return list;
@@ -1706,6 +1733,17 @@ namespace ArcticJoiner
                 if (!hex && c != '-') return false;
             }
             return true;
+        }
+
+        internal static double ExtractDouble(string text, string key)
+        {
+            int i = text.IndexOf(key, StringComparison.Ordinal);
+            if (i < 0) return 0;
+            i += key.Length;
+            int j = i;
+            while (j < text.Length && (char.IsDigit(text[j]) || text[j] == '.' || text[j] == '-')) j++;
+            double d;
+            return double.TryParse(text.Substring(i, j - i), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out d) ? d : 0;
         }
 
         internal static int ExtractInt(string text, string key)
@@ -1915,8 +1953,19 @@ namespace ArcticJoiner
 
         private void OpenLiveServer()
         {
-            var form = new LiveServerForm(this);
-            form.Show(this);
+            if (_liveCheck != null && !_liveCheck.Checked)
+            {
+                _liveCheck.Checked = true; // toggling on opens the window
+                return;
+            }
+            if (_liveForm == null || _liveForm.IsDisposed) _liveForm = new LiveServerForm(this);
+            _liveForm.Show(this);
+        }
+
+        // Called when the live window is closed by the user (keeps the checkbox in sync).
+        internal void LiveWindowClosed()
+        {
+            try { if (_liveCheck != null && _liveCheck.Checked) _liveCheck.Checked = false; } catch { }
         }
 
         private void OpenServerBrowser()
@@ -2223,6 +2272,26 @@ namespace ArcticJoiner
             return sb.ToString();
         }
 
+        // Finds the server's public address in the log (used for region + latency).
+        // The UDMUX line looks like:
+        //   [FLog::Network] UDMUX Address = 128.116.30.33, Port = 51776 | RCC ...
+        internal static bool TryFindServerAddress(string logText, out string ip, out int port)
+        {
+            ip = null;
+            port = 0;
+            if (string.IsNullOrEmpty(logText)) return false;
+            var m = System.Text.RegularExpressions.Regex.Matches(logText,
+                @"(?i)udmux address\s*=\s*([0-9.]+)\s*,\s*port\s*=\s*([0-9]+)");
+            if (m.Count == 0) m = System.Text.RegularExpressions.Regex.Matches(logText,
+                @"(?i)serverid\s*:\s*([0-9.]+)\|([0-9]+)");
+            if (m.Count == 0) return false;
+            var last = m[m.Count - 1];
+            ip = last.Groups[1].Value;
+            int p;
+            port = int.TryParse(last.Groups[2].Value, out p) ? p : 0;
+            return true;
+        }
+
         internal static string LastLines(string text, int count)
         {
             if (string.IsNullOrEmpty(text)) return "";
@@ -2295,12 +2364,22 @@ namespace ArcticJoiner
     {
         private readonly JoinerForm _main;
         private readonly Label _gameLabel;
-        private readonly Label _serverLabel;
         private readonly Label _playersLabel;
         private readonly Label _updatedLabel;
+        private readonly Label _regionValue;
+        private readonly Label _pingValue;
+        private readonly Label _latencyValue;
+        private readonly Label _fpsValue;
+        private readonly Label _serverValue;
+        private readonly Label _placeValue;
         private readonly TextBox _debugBox;
         private readonly CheckBox _topCheck;
         private System.Windows.Forms.Timer _timer;
+        private string _serverIp;
+        private int _serverPort;
+        private string _geoIp;
+        private string _geoText;
+        private string _latencyText;
 
         public LiveServerForm(JoinerForm main)
         {
@@ -2314,8 +2393,8 @@ namespace ArcticJoiner
             FormBorderStyle = FormBorderStyle.SizableToolWindow;
             StartPosition = FormStartPosition.CenterScreen;
             Font = new Font("Segoe UI", 9F);
-            ClientSize = new Size(430, 212);
-            MinimumSize = new Size(390, 212);
+            ClientSize = new Size(470, 300);
+            MinimumSize = new Size(430, 300);
             MaximizeBox = false;
             TopMost = true;
 
@@ -2325,7 +2404,7 @@ namespace ArcticJoiner
                 Font = new Font("Segoe UI", 13F, FontStyle.Bold),
                 AutoSize = false,
                 Location = new Point(16, 14),
-                Size = new Size(398, 24),
+                Size = new Size(438, 24),
                 AutoEllipsis = true,
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
             };
@@ -2335,25 +2414,23 @@ namespace ArcticJoiner
                 Font = new Font("Segoe UI", 20F, FontStyle.Bold),
                 AutoSize = false,
                 Location = new Point(16, 40),
-                Size = new Size(398, 38),
+                Size = new Size(438, 38),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
             };
-            _serverLabel = new Label
-            {
-                Text = "",
-                AutoSize = false,
-                Location = new Point(16, 82),
-                Size = new Size(398, 16),
-                ForeColor = SystemColors.GrayText,
-                AutoEllipsis = true,
-                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
-            };
+
+            _regionValue = AddRow("Region", 88);
+            _pingValue = AddRow("Ping", 108);
+            _latencyValue = AddRow("Latency", 128);
+            _fpsValue = AddRow("FPS", 148);
+            _serverValue = AddRow("Server", 168);
+            _placeValue = AddRow("Place", 188);
+
             _updatedLabel = new Label
             {
                 Text = "",
                 AutoSize = false,
-                Location = new Point(16, 100),
-                Size = new Size(398, 16),
+                Location = new Point(16, 214),
+                Size = new Size(438, 16),
                 ForeColor = SystemColors.GrayText,
                 AutoEllipsis = true,
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
@@ -2378,7 +2455,6 @@ namespace ArcticJoiner
 
             Controls.Add(_gameLabel);
             Controls.Add(_playersLabel);
-            Controls.Add(_serverLabel);
             Controls.Add(_updatedLabel);
             Controls.Add(refreshBtn);
             Controls.Add(scanBtn);
@@ -2396,58 +2472,213 @@ namespace ArcticJoiner
             _topCheck.CheckedChanged += (s, e) => TopMost = _topCheck.Checked;
 
             Shown += (s, e) => RefreshStats();
-            _timer = new System.Windows.Forms.Timer { Interval = 30000 };
+            _timer = new System.Windows.Forms.Timer { Interval = 15000 };
             _timer.Tick += (s, e) => RefreshStats();
             _timer.Start();
-            FormClosed += (s, e) => { if (_timer != null) _timer.Stop(); };
+            FormClosed += (s, e) => { if (_timer != null) _timer.Stop(); _main.LiveWindowClosed(); };
 
             _debugBox.Text = "Press Refresh to show the server you joined through Arctic Joiner."
                 + Environment.NewLine
                 + "If Roblox picked the server itself, press \"Scan Roblox logs\" and send the output so the pattern can be tuned.";
         }
 
+        // Adds a caption/value row to the detail grid and returns the value label.
+        private Label AddRow(string caption, int y)
+        {
+            var cap = new Label
+            {
+                Text = caption,
+                AutoSize = false,
+                Location = new Point(16, y),
+                Size = new Size(84, 18),
+                ForeColor = SystemColors.GrayText,
+                Anchor = AnchorStyles.Top | AnchorStyles.Left
+            };
+            var val = new Label
+            {
+                Text = "-",
+                AutoSize = false,
+                Location = new Point(104, y),
+                Size = new Size(350, 18),
+                AutoEllipsis = true,
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
+            };
+            Controls.Add(cap);
+            Controls.Add(val);
+            return val;
+        }
+
         private void RefreshStats()
         {
-            string placeId = _main.LivePlaceId();
-            string serverId = _main.LiveServerId();
-            if (string.IsNullOrEmpty(placeId) && string.IsNullOrEmpty(serverId))
-            {
-                _gameLabel.Text = "No server yet";
-                _serverLabel.Text = "";
-                _playersLabel.Text = "";
-                _updatedLabel.Text = "Join a game through Arctic Joiner, or press \"Scan Roblox logs\".";
-                return;
-            }
-            _serverLabel.Text = string.IsNullOrEmpty(serverId) ? "(server chosen by Roblox)" : "Server " + serverId;
             _updatedLabel.Text = "Updating...";
-            string place = placeId;
-            string server = serverId;
             System.Threading.Tasks.Task.Run((Action)(() =>
             {
+                string place = _main.LivePlaceId();
+                string server = _main.LiveServerId();
+
+                // Missing either id? Read them straight out of the Roblox log.
+                if (place == null || server == null) FillFromLog();
+
                 string name = place != null ? JoinerForm.FetchGameName(place) : null;
                 List<ServerInfo> servers = place != null ? JoinerForm.FetchServers(place) : new List<ServerInfo>();
-                ServerInfo mine = null;
-                if (server != null)
+                ServerInfo mine = FindServer(servers, server);
+
+                // The remembered server goes stale if you hop outside the app, so
+                // when it is not in the list, re-read the log and adopt what is.
+                if (place != null && server != null && mine == null)
                 {
-                    foreach (ServerInfo sv in servers)
+                    string before = server;
+                    string beforePlace = place;
+                    FillFromLog();
+                    if (server != null && !string.Equals(server, before, StringComparison.OrdinalIgnoreCase))
                     {
-                        if (string.Equals(sv.Id, server, StringComparison.OrdinalIgnoreCase)) { mine = sv; break; }
+                        if (!string.Equals(place, beforePlace, StringComparison.OrdinalIgnoreCase))
+                        {
+                            name = JoinerForm.FetchGameName(place);
+                            servers = JoinerForm.FetchServers(place);
+                        }
+                        mine = FindServer(servers, server);
                     }
                 }
+
+                string region = GeoFor(_serverIp);
+                string latency = LatencyFor(_serverIp, _serverPort);
                 try
                 {
                     Invoke((MethodInvoker)delegate
                     {
+                        if (place == null && server == null)
+                        {
+                            _gameLabel.Text = "No server found";
+                            _playersLabel.Text = "";
+                            _regionValue.Text = "-";
+                            _pingValue.Text = "-";
+                            _latencyValue.Text = "-";
+                            _fpsValue.Text = "-";
+                            _serverValue.Text = "-";
+                            _placeValue.Text = "-";
+                            _updatedLabel.Text = "Join a game, then press Refresh (or Scan Roblox logs).";
+                            return;
+                        }
                         _gameLabel.Text = name != null ? name : (place != null ? "Place " + place : "Unknown game");
                         if (mine != null && mine.MaxPlayers > 0) _playersLabel.Text = mine.Playing + " / " + mine.MaxPlayers;
                         else if (mine != null) _playersLabel.Text = mine.Playing + " playing";
                         else if (server == null) _playersLabel.Text = servers.Count + " servers";
-                        else _playersLabel.Text = "not in the list";
-                        _updatedLabel.Text = "Updated " + DateTime.Now.ToString("HH:mm:ss") + " - every 30s";
+                        else _playersLabel.Text = "not listed";
+                        _regionValue.Text = region != null ? region : (_serverIp != null ? "unknown" : "-");
+                        _pingValue.Text = mine != null && mine.Ping > 0 ? mine.Ping + " ms (Roblox)" : "-";
+                        _latencyValue.Text = latency != null ? latency : "-";
+                        _fpsValue.Text = mine != null && mine.Fps > 0 ? mine.Fps.ToString("0.0") : "-";
+                        _serverValue.Text = server != null ? server : "-";
+                        _placeValue.Text = place != null ? place : "-";
+                        _updatedLabel.Text = "Updated " + DateTime.Now.ToString("HH:mm:ss") + " - every 15s";
                     });
                 }
                 catch { }
             }));
+        }
+
+        private static ServerInfo FindServer(List<ServerInfo> servers, string serverId)
+        {
+            if (serverId == null) return null;
+            foreach (ServerInfo sv in servers)
+            {
+                if (string.Equals(sv.Id, serverId, StringComparison.OrdinalIgnoreCase)) return sv;
+            }
+            return null;
+        }
+
+        // Reads the newest log once and remembers the place, server and address.
+        private void FillFromLog()
+        {
+            try
+            {
+                string debug;
+                string file = RobloxLogs.NewestLogFile(out debug);
+                if (file == null) return;
+                string error;
+                string content = RobloxLogs.ReadTextShared(file, out error);
+                if (content == null) return;
+                string placeId, serverId;
+                RobloxLogs.TryFindCurrentServer(content, out placeId, out serverId);
+                if (placeId != null || serverId != null) _main.SetLiveServer(placeId, serverId);
+                string ip;
+                int port;
+                if (RobloxLogs.TryFindServerAddress(content, out ip, out port) && ip != _serverIp)
+                {
+                    _serverIp = ip;
+                    _serverPort = port;
+                    _geoIp = null;
+                    _geoText = null;
+                    _latencyText = null;
+                }
+            }
+            catch { }
+        }
+
+        // Cached region lookup for the server address (ip-api.com, one call per IP).
+        private string GeoFor(string ip)
+        {
+            if (ip == null) return null;
+            if (_geoIp == ip) return _geoText;
+            _geoIp = ip;
+            _geoText = null;
+            try
+            {
+                using (var wc = new System.Net.WebClient())
+                {
+                    wc.Headers.Add("User-Agent", "ArcticJoiner");
+                    string json = wc.DownloadString("http://ip-api.com/json/" + ip + "?fields=status,countryCode,regionName,city");
+                    if (json.IndexOf("success", StringComparison.OrdinalIgnoreCase) < 0) return _geoText;
+                    string city = JsonValue(json, "city");
+                    string regionName = JsonValue(json, "regionName");
+                    string country = JsonValue(json, "countryCode");
+                    var parts = new List<string>();
+                    if (!string.IsNullOrEmpty(city)) parts.Add(city);
+                    else if (!string.IsNullOrEmpty(regionName)) parts.Add(regionName);
+                    if (!string.IsNullOrEmpty(country)) parts.Add(country);
+                    if (parts.Count > 0) _geoText = string.Join(", ", parts.ToArray());
+                }
+            }
+            catch { }
+            return _geoText;
+        }
+
+        private static string JsonValue(string json, string key)
+        {
+            string needle = "\"" + key + "\":\"";
+            int i = json.IndexOf(needle, StringComparison.Ordinal);
+            if (i < 0) return null;
+            i += needle.Length;
+            int j = json.IndexOf('"', i);
+            if (j < 0) return null;
+            return json.Substring(i, j - i);
+        }
+
+        // Measures our own TCP latency to the server (best of a few tries).
+        private string LatencyFor(string ip, int port)
+        {
+            if (ip == null || port <= 0) return null;
+            if (_latencyText != null) return _latencyText;
+            try
+            {
+                int best = int.MaxValue;
+                for (int attempt = 0; attempt < 3; attempt++)
+                {
+                    var sw = System.Diagnostics.Stopwatch.StartNew();
+                    using (var client = new System.Net.Sockets.TcpClient())
+                    {
+                        var task = client.ConnectAsync(ip, port);
+                        if (!task.Wait(1500)) break;
+                        sw.Stop();
+                        int ms = (int)sw.ElapsedMilliseconds;
+                        if (ms < best) best = ms;
+                    }
+                }
+                if (best != int.MaxValue) _latencyText = best + " ms (ours)";
+            }
+            catch { }
+            return _latencyText;
         }
 
         private void ScanLogs()
@@ -2485,6 +2716,16 @@ namespace ArcticJoiner
                             + "---- last 15 lines ----" + Environment.NewLine
                             + RobloxLogs.LastLines(content, 15);
                         if (placeId != null || serverId != null) _main.SetLiveServer(placeId, serverId);
+                    string sip;
+                    int sport;
+                    if (RobloxLogs.TryFindServerAddress(content, out sip, out sport) && sip != _serverIp)
+                    {
+                        _serverIp = sip;
+                        _serverPort = sport;
+                        _geoIp = null;
+                        _geoText = null;
+                        _latencyText = null;
+                    }
                     }
                 }
                 try
@@ -2654,7 +2895,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "2.9.3";
+        public const string Version = "2.9.4";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.
