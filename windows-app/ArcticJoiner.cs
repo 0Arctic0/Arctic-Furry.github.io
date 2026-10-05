@@ -2393,8 +2393,8 @@ namespace ArcticJoiner
             FormBorderStyle = FormBorderStyle.SizableToolWindow;
             StartPosition = FormStartPosition.CenterScreen;
             Font = new Font("Segoe UI", 9F);
-            ClientSize = new Size(470, 300);
-            MinimumSize = new Size(430, 300);
+            ClientSize = new Size(470, 314);
+            MinimumSize = new Size(430, 314);
             MaximizeBox = false;
             TopMost = true;
 
@@ -2435,10 +2435,12 @@ namespace ArcticJoiner
                 AutoEllipsis = true,
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
             };
-            var refreshBtn = new Button { FlatStyle = FlatStyle.System, Text = "Refresh", Location = new Point(16, 126), Size = new Size(96, 28) };
-            var scanBtn = new Button { FlatStyle = FlatStyle.System, Text = "Scan Roblox logs", Location = new Point(120, 126), Size = new Size(132, 28) };
-            var debugBtn = new Button { FlatStyle = FlatStyle.System, Text = "Debug", Location = new Point(260, 126), Size = new Size(76, 28) };
-            _topCheck = new CheckBox { Text = "On top", Checked = true, AutoSize = true, Location = new Point(346, 132) };
+            var refreshBtn = new Button { FlatStyle = FlatStyle.System, Text = "Refresh", Location = new Point(16, 240), Size = new Size(96, 28) };
+            var scanBtn = new Button { FlatStyle = FlatStyle.System, Text = "Scan Roblox logs", Location = new Point(120, 240), Size = new Size(132, 28) };
+            var debugBtn = new Button { FlatStyle = FlatStyle.System, Text = "Debug", Location = new Point(260, 240), Size = new Size(70, 28) };
+            _topCheck = new CheckBox { Text = "On top", Checked = true, AutoSize = true, Location = new Point(346, 246) };
+            var copyInviteBtn = new Button { FlatStyle = FlatStyle.System, Text = "Copy invite link", Location = new Point(16, 274), Size = new Size(150, 28) };
+            var copyArcticBtn = new Button { FlatStyle = FlatStyle.System, Text = "Copy arctic link", Location = new Point(174, 274), Size = new Size(170, 28) };
             _debugBox = new TextBox
             {
                 Multiline = true,
@@ -2446,8 +2448,8 @@ namespace ArcticJoiner
                 ScrollBars = ScrollBars.Vertical,
                 WordWrap = false,
                 Visible = false,
-                Location = new Point(16, 164),
-                Size = new Size(398, 142),
+                Location = new Point(16, 312),
+                Size = new Size(438, 150),
                 Font = new Font("Consolas", 8F),
                 BackColor = Color.FromArgb(250, 250, 250),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
@@ -2459,15 +2461,19 @@ namespace ArcticJoiner
             Controls.Add(refreshBtn);
             Controls.Add(scanBtn);
             Controls.Add(debugBtn);
+            Controls.Add(copyInviteBtn);
+            Controls.Add(copyArcticBtn);
             Controls.Add(_topCheck);
             Controls.Add(_debugBox);
 
             refreshBtn.Click += (s, e) => RefreshStats();
             scanBtn.Click += (s, e) => ScanLogs();
+            copyInviteBtn.Click += (s, e) => CopyText(BuildJoinLink(false));
+            copyArcticBtn.Click += (s, e) => CopyText(BuildJoinLink(true));
             debugBtn.Click += (s, e) =>
             {
                 _debugBox.Visible = !_debugBox.Visible;
-                ClientSize = new Size(ClientSize.Width, _debugBox.Visible ? 320 : 212);
+                ClientSize = new Size(ClientSize.Width, _debugBox.Visible ? 478 : 314);
             };
             _topCheck.CheckedChanged += (s, e) => TopMost = _topCheck.Checked;
 
@@ -2506,6 +2512,45 @@ namespace ArcticJoiner
             Controls.Add(cap);
             Controls.Add(val);
             return val;
+        }
+
+        // Builds a join link for the current server:
+        //  - the website invite page (works for anyone with a browser)
+        //  - or our own arcticjoiner:// deep link (hands off to the app).
+        private string BuildJoinLink(bool arctic)
+        {
+            string place = _main.LivePlaceId();
+            string server = _main.LiveServerId();
+            if (string.IsNullOrEmpty(place)) return null;
+            if (arctic)
+            {
+                string link = "arcticjoiner://placeId=" + place;
+                if (!string.IsNullOrEmpty(server)) link += "&gameInstanceId=" + server;
+                return link;
+            }
+            string url = "https://arctic0dev.github.io/invite/?placeId=" + place;
+            if (!string.IsNullOrEmpty(server)) url += "&gameInstanceId=" + server;
+            return url;
+        }
+
+        private void CopyText(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                _updatedLabel.Text = "Nothing to copy yet - join a server first.";
+                return;
+            }
+            for (int attempt = 0; attempt < 3; attempt++)
+            {
+                try
+                {
+                    Clipboard.SetText(text);
+                    _updatedLabel.Text = "Copied: " + text;
+                    return;
+                }
+                catch { System.Threading.Thread.Sleep(100); }
+            }
+            _updatedLabel.Text = "Could not copy - the clipboard is busy right now.";
         }
 
         private void RefreshStats()
@@ -2895,7 +2940,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "2.9.4";
+        public const string Version = "2.9.5";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.

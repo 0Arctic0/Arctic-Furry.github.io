@@ -1,6 +1,14 @@
 [
   {
     "date": "2026-10-03",
+    "title": "Windows app v2.9.5: copyable join links in live server stats",
+    "items": [
+      "The live server window can now copy a join link for the server you are in: Copy invite link makes a link to the site's /invite page that works for anyone, and Copy arctic link makes an arcticjoiner:// link for other app users.",
+      "Also fixed the window's buttons so they no longer overlap the info rows."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "title": "Windows app v2.9.4: richer live server window, 15s, toggle in main window",
     "items": [
       "The live server window now shows more about your server: players, region (via ip-api.com), ping (from Roblox), our own TCP latency to it, FPS, and the server and place ids - refreshed every 15 seconds.",
