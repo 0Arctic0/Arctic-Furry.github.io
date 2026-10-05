@@ -1694,27 +1694,41 @@ namespace ArcticJoiner
         // has no public servers right now. Follows nextPageCursor so games with
         // hundreds of servers are covered too - before this only the first 100
         // were seen, so the live window often could not find your server.
+        // Follows nextPageCursor, but keeps whatever earlier pages gave us. A
+        // failure on a later page (rate limit, etc.) no longer wipes the fetch -
+        // before this, page 4 hitting HTTP 429 threw away pages 1-3 entirely and
+        // the live window showed "not listed".
         private static List<ServerInfo> TryFetchServersFrom(string url)
         {
-            try
+            var list = new List<ServerInfo>();
+            string cursor = null;
+            using (var wc = new System.Net.WebClient())
             {
-                using (var wc = new System.Net.WebClient())
+                wc.Headers.Add("User-Agent", "ArcticJoiner");
+                for (int page = 0; page < 6; page++)
                 {
-                    wc.Headers.Add("User-Agent", "ArcticJoiner");
-                    var list = new List<ServerInfo>();
-                    string cursor = null;
-                    for (int page = 0; page < 6; page++)
+                    string pageUrl = url + (cursor == null ? "" : "&cursor=" + System.Uri.EscapeDataString(cursor));
+                    string json;
+                    try
                     {
-                        string pageUrl = url + (cursor == null ? "" : "&cursor=" + System.Uri.EscapeDataString(cursor));
-                        string json = wc.DownloadString(pageUrl);
-                        int added = ParseServersInto(json, list);
-                        cursor = ExtractCursor(json);
-                        if (cursor == null || added == 0) break;
+                        json = wc.DownloadString(pageUrl);
                     }
-                    return list;
+                    catch
+                    {
+                        if (page == 0) return null; // first page failing is a hard fail
+                        // Wait once and retry that page; if it still fails, stop
+                        // and keep what earlier pages gave us.
+                        System.Threading.Thread.Sleep(1500);
+                        try { json = wc.DownloadString(pageUrl); }
+                        catch { break; }
+                    }
+                    int added = ParseServersInto(json, list);
+                    cursor = ExtractCursor(json);
+                    if (cursor == null || added == 0) break;
+                    System.Threading.Thread.Sleep(200); // be gentle between pages
                 }
             }
-            catch { return null; }
+            return list;
         }
 
         private static int ParseServersInto(string json, List<ServerInfo> list)
@@ -2950,7 +2964,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "2.9.8";
+        public const string Version = "2.9.9";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.
