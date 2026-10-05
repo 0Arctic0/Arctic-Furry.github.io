@@ -1,6 +1,14 @@
 [
   {
     "date": "2026-10-03",
+    "title": "Windows app v2.9.7: live stats work for big games",
+    "items": [
+      "Fixed the live server window showing not listed for popular games: it only ever fetched the first 100 servers, so your server was invisible in games with hundreds. It now follows Roblox's pagination and covers up to 600 servers, so it finds you in big games too.",
+      "This also makes the server browser and Join Emptiest see more servers for those games."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "title": "App v2.9.6 trim + site arctic-to-roblox converter",
     "items": [
       "Live server stats: removed the Scan Roblox logs button (Refresh finds the server from the log on its own) and the Copy arctic link button (the site invite link does the same job, and the site already supports Arctic Joiner). The Debug button now doubles as the scanner.",

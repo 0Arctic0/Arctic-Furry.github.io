@@ -1691,7 +1691,9 @@ namespace ArcticJoiner
         }
 
         // Returns null when the request fails; an empty list means the game really
-        // has no public servers right now.
+        // has no public servers right now. Follows nextPageCursor so games with
+        // hundreds of servers are covered too - before this only the first 100
+        // were seen, so the live window often could not find your server.
         private static List<ServerInfo> TryFetchServersFrom(string url)
         {
             try
@@ -1699,27 +1701,47 @@ namespace ArcticJoiner
                 using (var wc = new System.Net.WebClient())
                 {
                     wc.Headers.Add("User-Agent", "ArcticJoiner");
-                    string json = wc.DownloadString(url);
                     var list = new List<ServerInfo>();
-                    foreach (string chunk in json.Split(new string[] { "\"id\":\"" }, StringSplitOptions.None))
+                    string cursor = null;
+                    for (int page = 0; page < 6; page++)
                     {
-                        int q = chunk.IndexOf('"');
-                        if (q <= 0) continue;
-                        string id = chunk.Substring(0, q);
-                        if (!IsServerId(id)) continue;
-                        list.Add(new ServerInfo
-                        {
-                            Id = id,
-                            Playing = ExtractInt(chunk, "\"playing\":"),
-                            MaxPlayers = ExtractInt(chunk, "\"maxPlayers\":"),
-                            Ping = ExtractInt(chunk, "\"ping\":"),
-                            Fps = ExtractDouble(chunk, "\"fps\":")
-                        });
+                        string pageUrl = url + (cursor == null ? "" : "&cursor=" + System.Uri.EscapeDataString(cursor));
+                        string json = wc.DownloadString(pageUrl);
+                        int added = ParseServersInto(json, list);
+                        cursor = ExtractCursor(json);
+                        if (cursor == null || added == 0) break;
                     }
                     return list;
                 }
             }
             catch { return null; }
+        }
+
+        private static int ParseServersInto(string json, List<ServerInfo> list)
+        {
+            int before = list.Count;
+            foreach (string chunk in json.Split(new string[] { "\"id\":\"" }, StringSplitOptions.None))
+            {
+                int q = chunk.IndexOf('"');
+                if (q <= 0) continue;
+                string id = chunk.Substring(0, q);
+                if (!IsServerId(id)) continue;
+                list.Add(new ServerInfo
+                {
+                    Id = id,
+                    Playing = ExtractInt(chunk, "\"playing\":"),
+                    MaxPlayers = ExtractInt(chunk, "\"maxPlayers\":"),
+                    Ping = ExtractInt(chunk, "\"ping\":"),
+                    Fps = ExtractDouble(chunk, "\"fps\":")
+                });
+            }
+            return list.Count - before;
+        }
+
+        private static string ExtractCursor(string json)
+        {
+            var m = System.Text.RegularExpressions.Regex.Match(json, "\"nextPageCursor\":\"([^\"]+)\"");
+            return m.Success && m.Groups[1].Value.Length > 0 ? m.Groups[1].Value : null;
         }
 
         // Server ids are GUIDs; player ids in the same payload are numbers, so
@@ -2928,7 +2950,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "2.9.6";
+        public const string Version = "2.9.7";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.
