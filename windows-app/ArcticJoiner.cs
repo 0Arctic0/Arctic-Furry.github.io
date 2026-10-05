@@ -95,9 +95,8 @@ namespace ArcticJoiner
         public bool AlwaysOnTop = false;
         public bool KillBeforeJoin = true;
         public bool AutoRejoin = false;   // rejoin the last server if Roblox closes
-        public string WatchGames = "";        // comma-separated placeIds to watch
-        public bool WatchNotify = true;       // tray balloon when a watched game opens a slot
-        public bool WatchAutoJoin = false;    // auto-join the emptiest open server
+        public int WindowLeft = -1;       // remembered main-window position (-1 = centered)
+        public int WindowTop = -1;
 
         private static string SettingsFile
         {
@@ -147,9 +146,8 @@ namespace ArcticJoiner
                         else if (key == "alwaysOnTop") s.AlwaysOnTop = val == "1";
                         else if (key == "killBeforeJoin") s.KillBeforeJoin = val == "1";
                         else if (key == "autoRejoin") s.AutoRejoin = val == "1";
-                        else if (key == "watchGames") s.WatchGames = val;
-                        else if (key == "watchNotify") s.WatchNotify = val == "1";
-                        else if (key == "watchAutoJoin") s.WatchAutoJoin = val == "1";
+                        else if (key == "windowLeft") { int n; if (int.TryParse(val, out n)) s.WindowLeft = n; }
+                        else if (key == "windowTop") { int n; if (int.TryParse(val, out n)) s.WindowTop = n; }
                     }
                 }
             }
@@ -174,9 +172,8 @@ namespace ArcticJoiner
                     .AppendLine("alwaysOnTop=" + (AlwaysOnTop ? "1" : "0"))
                     .AppendLine("killBeforeJoin=" + (KillBeforeJoin ? "1" : "0"))
                     .AppendLine("autoRejoin=" + (AutoRejoin ? "1" : "0"))
-                    .AppendLine("watchGames=" + WatchGames)
-                    .AppendLine("watchNotify=" + (WatchNotify ? "1" : "0"))
-                    .AppendLine("watchAutoJoin=" + (WatchAutoJoin ? "1" : "0"))
+                    .AppendLine("windowLeft=" + WindowLeft)
+                    .AppendLine("windowTop=" + WindowTop)
                     .ToString());
             }
             catch { }
@@ -241,9 +238,6 @@ namespace ArcticJoiner
         private bool _rejoinArmed;
         private bool _robloxWasRunning;
         private System.Windows.Forms.Timer _rejoinTimer;
-        private readonly List<string> _watchList = new List<string>();
-        private readonly Dictionary<string, int> _watchOpen = new Dictionary<string, int>();
-        private System.Windows.Forms.Timer _watchTimer;
 
         public JoinerForm(Settings settings)
         {
@@ -252,7 +246,16 @@ namespace ArcticJoiner
             Text = "Arctic Joiner";
             FormBorderStyle = FormBorderStyle.FixedSingle;
             MaximizeBox = false;
-            StartPosition = FormStartPosition.CenterScreen;
+            if (_settings.WindowLeft != -1 && _settings.WindowTop != -1 &&
+                SystemInformation.VirtualScreen.Contains(new Point(_settings.WindowLeft, _settings.WindowTop)))
+            {
+                StartPosition = FormStartPosition.Manual;
+                Location = new Point(_settings.WindowLeft, _settings.WindowTop);
+            }
+            else
+            {
+                StartPosition = FormStartPosition.CenterScreen;
+            }
             ClientSize = new Size(620, 235);
 
             // Use the exe's own compiled-in icon for the window/taskbar.
@@ -280,7 +283,6 @@ namespace ArcticJoiner
             };
             _linkBox.Font = new Font(_linkBox.Font, FontStyle.Bold);
             _history.AddRange(LoadHistory());
-            LoadWatchlist();
             RenderHistoryItems();
             // Resolve game names for existing history entries in the background.
             foreach (string entry in _history)
@@ -680,7 +682,6 @@ namespace ArcticJoiner
             BuildTrayIcon();
             ApplyHotkey();
             if (_settings.AutoRejoin) StartRejoinWatch();
-            SyncWatchTimer();
 
             // Poll the incoming-link queue so a second instance's link is
             // picked up by this one.
@@ -1019,7 +1020,6 @@ namespace ArcticJoiner
                 menu.Items.Add("Clear history", null, (s, e) => ClearHistory());
             }
             menu.Items.Add("Open Arctic Joiner", null, (s, e) => { Show(); Activate(); });
-            menu.Items.Add("Watch games", null, (s, e) => OpenWatchlist());
             menu.Items.Add("Join from clipboard", null, (s, e) => OnHotkey());
             menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
             menu.Items.Add("Exit", null, (s, e) => { _reallyExit = true; Close(); });
@@ -1045,8 +1045,21 @@ namespace ArcticJoiner
             _tray.ContextMenuStrip = menu;
         }
 
+        private void SaveWindowPosition()
+        {
+            try
+            {
+                if (WindowState != FormWindowState.Normal) return;
+                _settings.WindowLeft = Location.X;
+                _settings.WindowTop = Location.Y;
+                _settings.Save();
+            }
+            catch { }
+        }
+
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
+            SaveWindowPosition();
             // Closing the window hides to the tray instead of exiting.
             if (!_reallyExit && e.CloseReason == CloseReason.UserClosing)
             {
@@ -1607,18 +1620,26 @@ namespace ArcticJoiner
 
         internal static string FetchGameName(string placeId)
         {
+            // This is a desktop app, not a browser, so Roblox's API can be called
+            // directly - the roproxy mirror is only a fallback for when the direct
+            // route is unreachable.
+            string name = TryFetchGameName(placeId, "https://apis.roblox.com", "https://games.roblox.com");
+            if (name != null) return name;
+            return TryFetchGameName(placeId, "https://apis.roproxy.com", "https://games.roproxy.com");
+        }
+
+        private static string TryFetchGameName(string placeId, string apiBase, string gamesBase)
+        {
             try
             {
                 using (var wc = new System.Net.WebClient())
                 {
                     wc.Headers.Add("User-Agent", "ArcticJoiner");
                     // place -> universe -> game name
-                    string universeJson = wc.DownloadString(
-                        "https://apis.roproxy.com/universes/v1/places/" + placeId + "/universe");
+                    string universeJson = wc.DownloadString(apiBase + "/universes/v1/places/" + placeId + "/universe");
                     var uniMatch = System.Text.RegularExpressions.Regex.Match(universeJson, "\"universeId\"\\s*:\\s*(\\d+)");
                     if (!uniMatch.Success) return null;
-                    string json = wc.DownloadString(
-                        "https://games.roproxy.com/v1/games?universeIds=" + uniMatch.Groups[1].Value);
+                    string json = wc.DownloadString(gamesBase + "/v1/games?universeIds=" + uniMatch.Groups[1].Value);
                     var nameMatch = System.Text.RegularExpressions.Regex.Match(json, "\"name\"\\s*:\\s*\"([^\"]+)\"");
                     return nameMatch.Success ? nameMatch.Groups[1].Value : null;
                 }
@@ -1626,18 +1647,31 @@ namespace ArcticJoiner
             catch { return null; }
         }
 
-        // Fetches every public server of a place (id + player counts) via the
-        // roproxy mirror. Returns an empty list on any failure.
+        // Fetches every public server of a place (id + player counts). The app is
+        // a desktop program, so it calls Roblox's API directly (no browser CORS
+        // limits); the roproxy mirror is only a fallback. Returns an empty list
+        // when both routes fail.
         internal static List<ServerInfo> FetchServers(string placeId)
         {
-            var list = new List<ServerInfo>();
+            List<ServerInfo> list = TryFetchServersFrom(
+                "https://games.roblox.com/v1/games/" + placeId + "/servers/Public?limit=100");
+            if (list != null) return list;
+            list = TryFetchServersFrom(
+                "https://games.roproxy.com/v1/games/" + placeId + "/servers/Public?limit=100");
+            return list != null ? list : new List<ServerInfo>();
+        }
+
+        // Returns null when the request fails; an empty list means the game really
+        // has no public servers right now.
+        private static List<ServerInfo> TryFetchServersFrom(string url)
+        {
             try
             {
                 using (var wc = new System.Net.WebClient())
                 {
                     wc.Headers.Add("User-Agent", "ArcticJoiner");
-                    string json = wc.DownloadString(
-                        "https://games.roproxy.com/v1/games/" + placeId + "/servers/Public?limit=100");
+                    string json = wc.DownloadString(url);
+                    var list = new List<ServerInfo>();
                     foreach (string chunk in json.Split(new string[] { "\"id\":\"" }, StringSplitOptions.None))
                     {
                         int q = chunk.IndexOf('"');
@@ -1651,10 +1685,10 @@ namespace ArcticJoiner
                             MaxPlayers = ExtractInt(chunk, "\"maxPlayers\":")
                         });
                     }
+                    return list;
                 }
             }
-            catch { }
-            return list;
+            catch { return null; }
         }
 
         // Server ids are GUIDs; player ids in the same payload are numbers, so
@@ -1875,161 +1909,6 @@ namespace ArcticJoiner
             if (!_rejoinTimer.Enabled) _rejoinTimer.Start();
         }
 
-        // ---- Game watchlist (notify / auto-join when a watched game opens a slot) ----
-
-        private void LoadWatchlist()
-        {
-            _watchList.Clear();
-            foreach (string part in (_settings.WatchGames ?? "").Split(','))
-            {
-                string t = part.Trim();
-                if (t.Length > 0 && !_watchList.Contains(t)) _watchList.Add(t);
-            }
-        }
-
-        private void SaveWatchlist()
-        {
-            _settings.WatchGames = string.Join(",", _watchList.ToArray());
-            _settings.Save();
-        }
-
-        private void SyncWatchTimer()
-        {
-            bool want = _watchList.Count > 0 && (_settings.WatchNotify || _settings.WatchAutoJoin);
-            if (want)
-            {
-                if (_watchTimer == null)
-                {
-                    _watchTimer = new System.Windows.Forms.Timer { Interval = 30000 };
-                    _watchTimer.Tick += (s, e) => CheckWatchlist();
-                }
-                if (!_watchTimer.Enabled) _watchTimer.Start();
-            }
-            else if (_watchTimer != null)
-            {
-                _watchTimer.Stop();
-            }
-        }
-
-        private void CheckWatchlist()
-        {
-            if (_watchList.Count == 0) return;
-            string[] games = _watchList.ToArray(); // snapshot - the list may change while we fetch
-            System.Threading.Tasks.Task.Run((Action)(() =>
-            {
-                foreach (string placeId in games)
-                {
-                    try
-                    {
-                        var servers = FetchServers(placeId);
-                        int open = 0;
-                        ServerInfo best = null;
-                        foreach (ServerInfo sv in servers)
-                        {
-                            if (sv.MaxPlayers > 0 && sv.Playing >= sv.MaxPlayers) continue;
-                            open++;
-                            if (best == null || sv.Playing < best.Playing) best = sv;
-                        }
-                        int prev = _watchOpen.ContainsKey(placeId) ? _watchOpen[placeId] : -1;
-                        _watchOpen[placeId] = open;
-                        if (open > 0 && prev == 0)
-                        {
-                            string pid = placeId;
-                            ServerInfo join = best;
-                            try
-                            {
-                                Invoke((MethodInvoker)delegate { OnWatchSlotOpened(pid, open, join); });
-                            }
-                            catch { }
-                        }
-                    }
-                    catch { }
-                }
-            }));
-        }
-
-        private void OnWatchSlotOpened(string placeId, int openCount, ServerInfo best)
-        {
-            string name = null;
-            foreach (string entry in _history)
-            {
-                if (PlaceIdOf(entry) == placeId)
-                {
-                    name = FriendlyName(entry);
-                    break;
-                }
-            }
-            if (string.IsNullOrEmpty(name) || name == "the previous server" || name.StartsWith("Place "))
-            {
-                name = "place " + placeId;
-            }
-            SetStatus("Slot opened in " + name + " (" + openCount + " open).", false);
-            if (_settings.WatchNotify && _tray != null)
-            {
-                try
-                {
-                    _tray.ShowBalloonTip(3000, "Slot open - Arctic Joiner",
-                        name + " has " + openCount + " open server" + (openCount == 1 ? "" : "s") + ".", ToolTipIcon.Info);
-                }
-                catch { }
-            }
-            if (_settings.WatchAutoJoin && best != null)
-            {
-                TryJoin("roblox://placeId=" + placeId + "&gameInstanceId=" + best.Id, closeAfter: false);
-            }
-        }
-
-        // Watchlist management (used by the watch window).
-        internal List<string> GetWatchList()
-        {
-            return new List<string>(_watchList);
-        }
-
-        internal void AddWatchGame(string placeId)
-        {
-            if (string.IsNullOrWhiteSpace(placeId) || _watchList.Contains(placeId)) return;
-            _watchList.Add(placeId);
-            SaveWatchlist();
-            SyncWatchTimer();
-            CheckWatchlist();
-        }
-
-        internal void RemoveWatchGame(string placeId)
-        {
-            _watchList.Remove(placeId);
-            _watchOpen.Remove(placeId);
-            SaveWatchlist();
-            SyncWatchTimer();
-        }
-
-        internal int GetWatchOpenCount(string placeId)
-        {
-            return _watchOpen.ContainsKey(placeId) ? _watchOpen[placeId] : -1;
-        }
-
-        internal void ForceWatchCheck()
-        {
-            CheckWatchlist();
-        }
-
-        internal bool WatchNotify
-        {
-            get { return _settings.WatchNotify; }
-            set { _settings.WatchNotify = value; _settings.Save(); SyncWatchTimer(); }
-        }
-
-        internal bool WatchAutoJoin
-        {
-            get { return _settings.WatchAutoJoin; }
-            set { _settings.WatchAutoJoin = value; _settings.Save(); SyncWatchTimer(); }
-        }
-
-        private void OpenWatchlist()
-        {
-            var form = new WatchlistForm(this);
-            form.Show(this);
-        }
-
         private static bool IsRobloxRunning()
         {
             try { return Process.GetProcessesByName("RobloxPlayerBeta").Length > 0; }
@@ -2080,7 +1959,9 @@ namespace ArcticJoiner
         private readonly Button _joinBtn;
         private readonly Button _emptiestBtn;
         private readonly Button _refreshBtn;
+        private readonly CheckBox _autoRefreshCheck;
         private readonly Action<string> _onJoin;
+        private System.Windows.Forms.Timer _autoTimer;
         private readonly List<ServerInfo> _servers = new List<ServerInfo>();
         private string _placeId;
 
@@ -2106,12 +1987,13 @@ namespace ArcticJoiner
             _list = new ListBox
             {
                 Location = new Point(12, 90),
-                Size = new Size(536, 320),
+                Size = new Size(536, 300),
                 Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
             };
             _joinBtn = new Button { Text = "Join Selected", Location = new Point(12, 418), Size = new Size(170, 32), Anchor = AnchorStyles.Bottom | AnchorStyles.Left };
             _emptiestBtn = new Button { Text = "Join Emptiest", Location = new Point(194, 418), Size = new Size(170, 32), Anchor = AnchorStyles.Bottom | AnchorStyles.Left };
             _refreshBtn = new Button { Text = "Refresh", Location = new Point(376, 418), Size = new Size(172, 32), Anchor = AnchorStyles.Bottom | AnchorStyles.Left };
+            _autoRefreshCheck = new CheckBox { Text = "Auto-refresh every 30 seconds", AutoSize = true, Location = new Point(12, 394), Anchor = AnchorStyles.Bottom | AnchorStyles.Left };
 
             Controls.Add(label);
             Controls.Add(_placeBox);
@@ -2121,6 +2003,7 @@ namespace ArcticJoiner
             Controls.Add(_joinBtn);
             Controls.Add(_emptiestBtn);
             Controls.Add(_refreshBtn);
+            Controls.Add(_autoRefreshCheck);
 
             if (!string.IsNullOrEmpty(initialPlaceId)) _placeBox.Text = initialPlaceId;
 
@@ -2130,6 +2013,12 @@ namespace ArcticJoiner
             _joinBtn.Click += (s, e) => JoinSelected();
             _emptiestBtn.Click += (s, e) => JoinEmptiest();
             _list.DoubleClick += (s, e) => JoinSelected();
+
+            _autoRefreshCheck.CheckedChanged += (s, e) => { if (_autoRefreshCheck.Checked) LoadServers(); };
+            _autoTimer = new System.Windows.Forms.Timer { Interval = 30000 };
+            _autoTimer.Tick += (s, e) => { if (_autoRefreshCheck.Checked && _placeId != null) LoadServers(); };
+            _autoTimer.Start();
+            FormClosed += (s, e) => { if (_autoTimer != null) _autoTimer.Stop(); };
 
             if (!string.IsNullOrEmpty(_placeId)) Shown += (s, e) => LoadServers();
         }
@@ -2168,11 +2057,13 @@ namespace ArcticJoiner
             System.Threading.Tasks.Task.Run((Action)(() =>
             {
                 var servers = JoinerForm.FetchServers(placeId);
+                string gameName = JoinerForm.FetchGameName(placeId);
                 try
                 {
                     Invoke((MethodInvoker)delegate
                     {
                         _loadBtn.Enabled = true;
+                        Text = "Server Browser" + (string.IsNullOrEmpty(gameName) ? "" : " - " + gameName);
                         _servers.Clear();
                         _servers.AddRange(servers);
                         _list.Items.Clear();
@@ -2213,155 +2104,7 @@ namespace ArcticJoiner
         }
     }
 
-    // Manage the games you are watching; the main form keeps checking them for
-    // open slots even while this window is closed.
-    internal sealed class WatchlistForm : Form
-    {
-        private readonly JoinerForm _main;
-        private readonly ListBox _list;
-        private readonly TextBox _placeBox;
-        private readonly Button _addBtn;
-        private readonly Button _removeBtn;
-        private readonly Button _refreshBtn;
-        private readonly CheckBox _notifyCheck;
-        private readonly CheckBox _autoJoinCheck;
-        private readonly Label _status;
-        private readonly Dictionary<string, string> _names = new Dictionary<string, string>();
-        private System.Windows.Forms.Timer _timer;
 
-        public WatchlistForm(JoinerForm main)
-        {
-            _main = main;
-            Text = "Watch games";
-            try
-            {
-                Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
-            }
-            catch { }
-            FormBorderStyle = FormBorderStyle.Sizable;
-            StartPosition = FormStartPosition.CenterScreen;
-            ClientSize = new Size(520, 420);
-
-            var label = new Label { Text = "Game link or place ID:", AutoSize = true, Location = new Point(12, 14) };
-            _placeBox = new TextBox { Location = new Point(12, 34), Width = 320, Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right };
-            _addBtn = new Button { Text = "Add", Location = new Point(340, 32), Size = new Size(80, 25), Anchor = AnchorStyles.Top | AnchorStyles.Right };
-            _removeBtn = new Button { Text = "Remove", Location = new Point(428, 32), Size = new Size(80, 25), Anchor = AnchorStyles.Top | AnchorStyles.Right };
-            _status = new Label { Location = new Point(12, 64), Size = new Size(496, 18), Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right };
-            _list = new ListBox
-            {
-                Location = new Point(12, 88),
-                Size = new Size(496, 240),
-                Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
-            };
-            _notifyCheck = new CheckBox
-            {
-                Text = "Notify me (tray balloon) when a slot opens",
-                Checked = main.WatchNotify,
-                AutoSize = true,
-                Location = new Point(12, 336),
-                Anchor = AnchorStyles.Bottom | AnchorStyles.Left
-            };
-            _autoJoinCheck = new CheckBox
-            {
-                Text = "Auto-join the emptiest open server",
-                Checked = main.WatchAutoJoin,
-                AutoSize = true,
-                Location = new Point(12, 360),
-                Anchor = AnchorStyles.Bottom | AnchorStyles.Left
-            };
-            _refreshBtn = new Button { Text = "Check now", Location = new Point(396, 348), Size = new Size(112, 28), Anchor = AnchorStyles.Bottom | AnchorStyles.Right };
-
-            Controls.Add(label);
-            Controls.Add(_placeBox);
-            Controls.Add(_addBtn);
-            Controls.Add(_removeBtn);
-            Controls.Add(_status);
-            Controls.Add(_list);
-            Controls.Add(_notifyCheck);
-            Controls.Add(_autoJoinCheck);
-            Controls.Add(_refreshBtn);
-
-            _addBtn.Click += (s, e) => AddGame();
-            _placeBox.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) { e.SuppressKeyPress = true; AddGame(); } };
-            _removeBtn.Click += (s, e) => RemoveSelected();
-            _refreshBtn.Click += (s, e) => { _main.ForceWatchCheck(); RenderList(); };
-            _notifyCheck.CheckedChanged += (s, e) => { main.WatchNotify = _notifyCheck.Checked; };
-            _autoJoinCheck.CheckedChanged += (s, e) => { main.WatchAutoJoin = _autoJoinCheck.Checked; };
-            FormClosed += (s, e) => { if (_timer != null) _timer.Stop(); };
-
-            RenderList();
-            _timer = new System.Windows.Forms.Timer { Interval = 5000 };
-            _timer.Tick += (s, e) => RenderList();
-            _timer.Start();
-        }
-
-        private void SetStatus(string text, bool error)
-        {
-            _status.Text = text;
-            _status.ForeColor = error ? Color.Firebrick : SystemColors.ControlText;
-        }
-
-        private string ResolveName(string placeId)
-        {
-            if (_names.ContainsKey(placeId)) return _names[placeId];
-            string copy = placeId;
-            System.Threading.Tasks.Task.Run((Action)(() =>
-            {
-                string name = JoinerForm.FetchGameName(copy);
-                if (name == null) return;
-                try
-                {
-                    Invoke((MethodInvoker)delegate
-                    {
-                        _names[copy] = name;
-                        RenderList();
-                    });
-                }
-                catch { }
-            }));
-            return "place " + placeId;
-        }
-
-        private void RenderList()
-        {
-            var games = _main.GetWatchList();
-            _list.Items.Clear();
-            foreach (string placeId in games)
-            {
-                int open = _main.GetWatchOpenCount(placeId);
-                string slots = open < 0 ? "checking..." : (open + " open");
-                _list.Items.Add(ResolveName(placeId) + "  -  " + slots);
-            }
-            SetStatus(games.Count == 0
-                ? "No games watched yet - add one above."
-                : "Watching " + games.Count + " game" + (games.Count == 1 ? "" : "s") + " (every 30s).", false);
-        }
-
-        private void AddGame()
-        {
-            string text = (_placeBox.Text ?? "").Trim();
-            string placeId = JoinerForm.PlaceIdOf(text);
-            if (placeId == null && text.Length > 0)
-            {
-                bool digits = true;
-                foreach (char c in text) if (!char.IsDigit(c)) { digits = false; break; }
-                if (digits) placeId = text;
-            }
-            if (placeId == null) { SetStatus("That is not a game link or place ID.", true); return; }
-            _main.AddWatchGame(placeId);
-            _placeBox.Text = "";
-            RenderList();
-        }
-
-        private void RemoveSelected()
-        {
-            int i = _list.SelectedIndex;
-            var games = _main.GetWatchList();
-            if (i < 0 || i >= games.Count) { SetStatus("Pick a game to remove.", true); return; }
-            _main.RemoveWatchGame(games[i]);
-            RenderList();
-        }
-    }
 }
 
 namespace ArcticJoiner
@@ -2515,7 +2258,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "2.8.5";
+        public const string Version = "2.9.0";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.

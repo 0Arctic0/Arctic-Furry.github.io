@@ -93,10 +93,8 @@ build through `ArcticJoiner.csproj`.
 - **Auto-rejoin:** optionally rejoin your last server automatically if Roblox
   closes or crashes.
 - **Server browser (in-app):** the Servers button lists a game's public servers
-  with player counts - join any, or join the emptiest.
-- **Game watchlist:** watch games for open slots - get a tray balloon when a slot
-  frees up, and optionally auto-join the emptiest open server. Manage it from the
-  Watch games window (tray menu).
+  with player counts - join any, or join the emptiest. It shows the game name in
+  the title and can auto-refresh every 30 seconds.
 - **User sniping moved to the website:** open `/snipe` on the site, type a
   username or user ID, and it finds their exact public server and gives you a
   one-tap roblox:// join. (Removed from the desktop app to keep it lean.)
