@@ -1,6 +1,29 @@
 [
   {
     "date": "2026-10-03",
+    "title": "Private server game links fixed (app v2.9.14 + site)",
+    "items": [
+      "Links like roblox.com/games/<id>/Game-Name?privateServerLinkCode=... now join correctly everywhere: the app and the site keep the place id and build roblox://placeId=<id>&linkCode=<code> instead of dropping the game and falling back to the share-links navigation.",
+      "The invite page's web button now opens the real game URL with the privateServerLinkCode instead of a share link, and the menu keeps the place id when you paste a private-server game link."
+    ]
+  },
+  {
+    "date": "2026-10-03",
+    "title": "Windows app v2.9.13: rock-solid in-game detection + latency removed",
+    "items": [
+      "The live server window only counts you as in a game when the Roblox player process is running AND the game log updated within the last 12 seconds - the log goes silent the moment you leave, which is why it used to claim you were in a server you had already left. The status says whether Roblox is at its menu or closed.",
+      "Removed the Latency row and its TCP measurement."
+    ]
+  },
+  {
+    "date": "2026-10-03",
+    "title": "Windows app v2.9.12: longer latency timeout",
+    "items": [
+      "The live window's latency measurement now waits up to 3 seconds for the connection. (Latency was removed entirely in v2.9.13.)"
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "title": "Windows app v2.9.11: find your server in huge games (search-until-found)",
     "items": [
       "The live server window now searches Roblox server pages until it finds your exact server (up to 10 pages) instead of always reading six - and it stops the moment it finds you, which also keeps request counts down for popular games. When a game is so big that Roblox simply does not publish your server, the count reads beyond Roblox's list while region and latency keep working from the log."

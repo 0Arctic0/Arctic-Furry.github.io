@@ -2927,6 +2927,14 @@ namespace ArcticJoiner
 
             if (privateCode != null)
             {
+                // A game link with privateServerLinkCode knows its game, so the
+                // deep link must carry BOTH: roblox://placeId=<id>&linkCode=<code>.
+                // (The navigation/share_links form is only for bare /share?code=
+                // links - it drops the game and fails for privateServerLinkCode.)
+                if (placeId != null)
+                {
+                    return "roblox://placeId=" + placeId + "&linkCode=" + Uri.EscapeDataString(privateCode);
+                }
                 return "roblox://navigation/share_links?code=" + Uri.EscapeDataString(privateCode) + "&type=Server";
             }
             if (placeId != null)
@@ -2999,7 +3007,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "2.9.13";
+        public const string Version = "2.9.14";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.

@@ -137,6 +137,10 @@
     return 'https://www.roblox.com/share?code=' + encodeURIComponent(privateCode) + '&type=Server';
   }
 
+  function buildGamePrivateWebLink(placeId, privateCode) {
+    return 'https://www.roblox.com/games/' + encodeURIComponent(placeId) + '/?privateServerLinkCode=' + encodeURIComponent(privateCode);
+  }
+
   function buildShareLinkDeepLink(privateCode) {
     return 'roblox://navigation/share_links?code=' + encodeURIComponent(privateCode) + '&type=Server';
   }
@@ -369,7 +373,7 @@
           ? buildDeepLink(placeId, instanceId)
           : buildPlaceLink(placeId);
     const webLink = mode === 'private'
-      ? buildPrivateWebLink(privateCode)
+      ? (placeId ? buildGamePrivateWebLink(placeId, privateCode) : buildPrivateWebLink(privateCode))
       : launchData
         ? buildLaunchDataWebLink(placeId, launchData, instanceId)
         : instanceId
@@ -523,6 +527,11 @@
       const url = new URL('../invite/', window.location.href);
       if (mode === 'private') {
         if (!privateCode) return '';
+        // Keep the place id when we know it: a game link with
+        // privateServerLinkCode joins via roblox://placeId=<id>&linkCode=<code>,
+        // not via the share-links navigation.
+        const privatePlace = placeId || lastPublicPlaceId;
+        if (privatePlace) url.searchParams.set('placeId', privatePlace);
         url.searchParams.set('privateCode', privateCode);
         return url.toString();
       }
@@ -577,7 +586,9 @@
         if (privateInput) privateInput.value = parsed.privateCode;
         if (privateGameLinkInput) privateGameLinkInput.value = raw;
         if (parsed.placeId) lastPublicPlaceId = parsed.placeId;
-        if (placeInput) placeInput.value = '';
+        // Keep the place id in the box - the link needs it (the field itself is
+        // hidden in private mode, this only feeds link generation).
+        if (placeInput) placeInput.value = parsed.placeId || '';
         if (instanceInput) instanceInput.value = '';
         return;
       }
@@ -604,7 +615,10 @@
         const privateCode = normalizePrivateCode(
           (privateInput && privateInput.value) || (privateGameLinkInput && privateGameLinkInput.value)
         );
-        return buildShareLinkDeepLink(privateCode);
+        const privatePlace = normalizePlaceId(placeInput && placeInput.value) || lastPublicPlaceId;
+        // With a place id the private link is roblox://placeId=<id>&linkCode=<code>;
+        // without one it falls back to the share-links navigation.
+        return privatePlace ? buildPrivateLink(privatePlace, privateCode) : buildShareLinkDeepLink(privateCode);
       }
       const placeId = normalizePlaceId(placeInput && placeInput.value);
       const instanceId = normalizeInstanceId(instanceInput && instanceInput.value);
