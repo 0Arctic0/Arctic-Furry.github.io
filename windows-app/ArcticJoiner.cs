@@ -1682,11 +1682,19 @@ namespace ArcticJoiner
         // when both routes fail.
         internal static List<ServerInfo> FetchServers(string placeId)
         {
+            return FetchServers(placeId, null);
+        }
+
+        // wantedId lets the live window stop paging as soon as its server shows
+        // up (and try more pages than the browser needs) - huge games often keep
+        // a server out of the first pages, and Roblox has no "server by id" API.
+        internal static List<ServerInfo> FetchServers(string placeId, string wantedId)
+        {
             List<ServerInfo> list = TryFetchServersFrom(
-                "https://games.roblox.com/v1/games/" + placeId + "/servers/Public?limit=100");
+                "https://games.roblox.com/v1/games/" + placeId + "/servers/Public?limit=100", wantedId);
             if (list != null) return list;
             list = TryFetchServersFrom(
-                "https://games.roproxy.com/v1/games/" + placeId + "/servers/Public?limit=100");
+                "https://games.roproxy.com/v1/games/" + placeId + "/servers/Public?limit=100", wantedId);
             return list != null ? list : new List<ServerInfo>();
         }
 
@@ -1698,14 +1706,14 @@ namespace ArcticJoiner
         // failure on a later page (rate limit, etc.) no longer wipes the fetch -
         // before this, page 4 hitting HTTP 429 threw away pages 1-3 entirely and
         // the live window showed "not listed".
-        private static List<ServerInfo> TryFetchServersFrom(string url)
+        private static List<ServerInfo> TryFetchServersFrom(string url, string wantedId)
         {
             var list = new List<ServerInfo>();
             string cursor = null;
             using (var wc = new System.Net.WebClient())
             {
                 wc.Headers.Add("User-Agent", "ArcticJoiner");
-                for (int page = 0; page < 6; page++)
+                for (int page = 0; page < (wantedId != null ? 10 : 6); page++)
                 {
                     string pageUrl = url + (cursor == null ? "" : "&cursor=" + System.Uri.EscapeDataString(cursor));
                     string json;
@@ -1723,6 +1731,14 @@ namespace ArcticJoiner
                         catch { break; }
                     }
                     int added = ParseServersInto(json, list);
+                    if (wantedId != null)
+                    {
+                        int firstNew = list.Count - added;
+                        for (int i = firstNew; i < list.Count; i++)
+                        {
+                            if (string.Equals(list[i].Id, wantedId, StringComparison.OrdinalIgnoreCase)) return list;
+                        }
+                    }
                     cursor = ExtractCursor(json);
                     if (cursor == null || added == 0) break;
                     System.Threading.Thread.Sleep(200); // be gentle between pages
@@ -2623,7 +2639,7 @@ namespace ArcticJoiner
                 if (place == null || server == null) FillFromLog();
 
                 string name = place != null ? JoinerForm.FetchGameName(place) : null;
-                List<ServerInfo> servers = place != null ? JoinerForm.FetchServers(place) : new List<ServerInfo>();
+                List<ServerInfo> servers = place != null ? JoinerForm.FetchServers(place, server) : new List<ServerInfo>();
                 ServerInfo mine = FindServer(servers, server);
 
                 // The remembered server goes stale if you hop outside the app, so
@@ -2667,7 +2683,7 @@ namespace ArcticJoiner
                         if (mine != null && mine.MaxPlayers > 0) _playersLabel.Text = mine.Playing + " / " + mine.MaxPlayers;
                         else if (mine != null) _playersLabel.Text = mine.Playing + " playing";
                         else if (server == null) _playersLabel.Text = servers.Count + " servers";
-                        else _playersLabel.Text = "not listed";
+                        else _playersLabel.Text = "beyond Roblox's list";
                         _regionValue.Text = region != null ? region : (_serverIp != null ? "unknown" : "-");
                         _pingValue.Text = mine != null && mine.Ping > 0 ? mine.Ping + " ms (Roblox)" : "-";
                         _latencyValue.Text = latency != null ? latency : "-";
@@ -2998,7 +3014,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "2.9.10";
+        public const string Version = "2.9.11";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.

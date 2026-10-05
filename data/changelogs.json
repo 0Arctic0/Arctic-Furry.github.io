@@ -1,6 +1,13 @@
 [
   {
     "date": "2026-10-03",
+    "title": "Windows app v2.9.11: find your server in huge games (search-until-found)",
+    "items": [
+      "The live server window now searches Roblox server pages until it finds your exact server (up to 10 pages) instead of always reading six - and it stops the moment it finds you, which also keeps request counts down for popular games. When a game is so big that Roblox simply does not publish your server, the count reads beyond Roblox's list while region and latency keep working from the log."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "title": "Windows app v2.9.10: live stats clear when you leave the game",
     "items": [
       "The live server window no longer shows a server you already left: the Roblox player process only runs while you are actually in a game, so when it is gone the window says Not in a game right now and forgets the stale server. (The log keeps its last join line forever, which is why it used to stick.)"
