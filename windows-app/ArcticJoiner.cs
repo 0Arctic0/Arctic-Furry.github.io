@@ -2788,7 +2788,7 @@ namespace ArcticJoiner
                     using (var client = new System.Net.Sockets.TcpClient())
                     {
                         var task = client.ConnectAsync(ip, port);
-                        if (!task.Wait(1500)) break;
+                        if (!task.Wait(3000)) break;
                         sw.Stop();
                         int ms = (int)sw.ElapsedMilliseconds;
                         if (ms < best) best = ms;
@@ -3014,7 +3014,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "2.9.11";
+        public const string Version = "2.9.12";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.
