@@ -1,6 +1,13 @@
 [
   {
     "date": "2026-10-03",
+    "title": "Windows app v2.9.10: live stats clear when you leave the game",
+    "items": [
+      "The live server window no longer shows a server you already left: the Roblox player process only runs while you are actually in a game, so when it is gone the window says Not in a game right now and forgets the stale server. (The log keeps its last join line forever, which is why it used to stick.)"
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "title": "Windows app v2.9.9: live stats survive server-list rate limits",
     "items": [
       "Fixed live stats failing entirely when a later server page got rate limited: the fetch now keeps the servers it already found, waits and retries the failed page once, and is gentler between pages, so big games work much more reliably."

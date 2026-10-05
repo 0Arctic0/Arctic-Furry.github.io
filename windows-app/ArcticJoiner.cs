@@ -1987,6 +1987,13 @@ namespace ArcticJoiner
             if (!string.IsNullOrEmpty(serverId)) _lastJoinServerId = serverId;
         }
 
+        // Forgets the remembered server - used when you have left the game.
+        internal void LiveClear()
+        {
+            _lastJoinPlaceId = null;
+            _lastJoinServerId = null;
+        }
+
         private void OpenLiveServer()
         {
             if (_liveCheck != null && !_liveCheck.Checked)
@@ -2022,7 +2029,7 @@ namespace ArcticJoiner
             if (!_rejoinTimer.Enabled) _rejoinTimer.Start();
         }
 
-        private static bool IsRobloxRunning()
+        internal static bool IsRobloxRunning()
         {
             try { return Process.GetProcessesByName("RobloxPlayerBeta").Length > 0; }
             catch { return false; }
@@ -2582,6 +2589,33 @@ namespace ArcticJoiner
             _updatedLabel.Text = "Updating...";
             System.Threading.Tasks.Task.Run((Action)(() =>
             {
+                // The Roblox player process only runs while you are actually in
+                // a game - when you leave, it exits (the main app is a different
+                // process). The log keeps its last "Joining game" line forever,
+                // so without this check the window would show a server you
+                // already left.
+                if (!JoinerForm.IsRobloxRunning())
+                {
+                    _main.LiveClear();
+                    try
+                    {
+                        Invoke((MethodInvoker)delegate
+                        {
+                            _gameLabel.Text = "Not in a game right now";
+                            _playersLabel.Text = "";
+                            _regionValue.Text = "-";
+                            _pingValue.Text = "-";
+                            _latencyValue.Text = "-";
+                            _fpsValue.Text = "-";
+                            _serverValue.Text = "-";
+                            _placeValue.Text = "-";
+                            _updatedLabel.Text = "Roblox is closed - stats return when you join a game.";
+                        });
+                    }
+                    catch { }
+                    return;
+                }
+
                 string place = _main.LivePlaceId();
                 string server = _main.LiveServerId();
 
@@ -2964,7 +2998,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "2.9.9";
+        public const string Version = "2.9.10";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.
