@@ -1,6 +1,15 @@
 [
   {
     "date": "2026-10-03",
+    "title": "App v2.9.6 trim + site arctic-to-roblox converter",
+    "items": [
+      "Live server stats: removed the Scan Roblox logs button (Refresh finds the server from the log on its own) and the Copy arctic link button (the site invite link does the same job, and the site already supports Arctic Joiner). The Debug button now doubles as the scanner.",
+      "The website now understands arcticjoiner:// links: paste one into the menu and it is detected like any other link, so you can convert it into a normal share link.",
+      "The menu also has a Copy roblox:// button that makes a direct roblox:// deep link that works for normal people without the app."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "title": "Windows app v2.9.5: copyable join links in live server stats",
     "items": [
       "The live server window can now copy a join link for the server you are in: Copy invite link makes a link to the site's /invite page that works for anyone, and Copy arctic link makes an arcticjoiner:// link for other app users.",

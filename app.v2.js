@@ -59,6 +59,11 @@
   function parseInviteLikeInput(value) {
     let text = String(value || '').trim();
     if (!text) return null;
+    // arcticjoiner:// links carry the params after "://" with no "?", so turn
+    // them into a normal query the parser below can read.
+    if (/^arcticjoiner:\/\//i.test(text)) {
+      text = 'https://join.invalid/?' + text.replace(/^arcticjoiner:\/\//i, '');
+    }
     // Tolerate links pasted without the scheme.
     if (!/^https?:\/\//i.test(text) && /^([a-z0-9-]+\.)*roblox\.com\//i.test(text)) {
       text = 'https://' + text;
@@ -490,6 +495,7 @@
     const launchButton = byId('launch-invite');
     const viewGameButton = byId('view-game');
     const copyLinkButton = byId('copy-link');
+    const copyRobloxButton = byId('copy-roblox-link');
     const output = byId('generated-link');
     const advancedToggle = byId('advanced-toggle');
     const advancedPanel = byId('advanced-panel');
@@ -624,6 +630,7 @@
       if (launchButton) launchButton.disabled = !url;
       if (viewGameButton) viewGameButton.disabled = !viewUrl;
       if (copyLinkButton) copyLinkButton.disabled = !url;
+      if (copyRobloxButton) copyRobloxButton.disabled = !buildDirectDeepLink();
       setStatus(
         url
           ? (getMode() === 'private' ? 'Private server join link ready.' : 'Public join link ready.')
@@ -668,6 +675,11 @@
     copyLinkButton && copyLinkButton.addEventListener('click', function () {
       const url = makeUrl();
       if (url) copyText(url, 'Join link copied.');
+    });
+
+    copyRobloxButton && copyRobloxButton.addEventListener('click', function () {
+      const deepLink = buildDirectDeepLink();
+      if (deepLink) copyText(deepLink, 'roblox:// deep link copied.');
     });
 
     const autoJoinCheckbox = byId('auto-join-toggle');
