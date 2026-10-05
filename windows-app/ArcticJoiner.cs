@@ -2179,17 +2179,48 @@ namespace ArcticJoiner
             return best;
         }
 
-        internal static string ReadTail(string file, int maxLines)
+        // Reads a log file even while the game still has it open for writing.
+        // Roblox keeps its log open, so a plain read can fail (that is why the
+        // first version showed no lines and no matches at all).
+        internal static string ReadTextShared(string file, out string error)
         {
+            error = null;
             try
             {
-                string[] lines = File.ReadAllLines(file);
-                int start = lines.Length > maxLines ? lines.Length - maxLines : 0;
-                var sb = new StringBuilder();
-                for (int i = start; i < lines.Length; i++) sb.AppendLine(lines[i]);
-                return sb.ToString();
+                using (var fs = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                using (var reader = new StreamReader(fs))
+                {
+                    return reader.ReadToEnd();
+                }
             }
-            catch { return null; }
+            catch (Exception ex)
+            {
+                error = ex.GetType().Name + ": " + ex.Message;
+                return null;
+            }
+        }
+
+        // Lines that look like they hold a join or a server id - printed so the
+        // patterns can be tuned against a real log.
+        internal static string InterestingLines(string text, int max)
+        {
+            var sb = new StringBuilder();
+            int found = 0;
+            string[] lines = text.Replace("\r\n", "\n").Split('\n');
+            foreach (string line in lines)
+            {
+                string low = line.ToLowerInvariant();
+                if (low.IndexOf("joining game") >= 0 || low.IndexOf("serverid") >= 0 ||
+                    low.IndexOf("gameid") >= 0 || low.IndexOf("gameinstanceid") >= 0 ||
+                    low.IndexOf("placeid") >= 0 || low.IndexOf("jobid") >= 0 ||
+                    low.IndexOf("udmux") >= 0)
+                {
+                    sb.AppendLine(line.Length > 300 ? line.Substring(0, 300) + " ..." : line);
+                    if (++found >= max) break;
+                }
+            }
+            if (found == 0) sb.AppendLine("(no lines mentioning join/server/game/place/udmux)");
+            return sb.ToString();
         }
 
         internal static string LastLines(string text, int count)
@@ -2212,17 +2243,18 @@ namespace ArcticJoiner
             serverId = null;
             if (string.IsNullOrEmpty(logText)) return false;
 
-            var pm = System.Text.RegularExpressions.Regex.Matches(logText, @"Joining game '([0-9]+)'");
-            if (pm.Count == 0) pm = System.Text.RegularExpressions.Regex.Matches(logText, @"placeId=([0-9]+)");
-            if (pm.Count == 0) pm = System.Text.RegularExpressions.Regex.Matches(logText, @"place ([0-9]{6,})");
+            var pm = System.Text.RegularExpressions.Regex.Matches(logText, @"(?i)joining game[^0-9]{0,10}([0-9]+)");
+            if (pm.Count == 0) pm = System.Text.RegularExpressions.Regex.Matches(logText, @"(?i)placeid[^0-9]{0,10}([0-9]+)");
+            if (pm.Count == 0) pm = System.Text.RegularExpressions.Regex.Matches(logText, @"(?i)place ([0-9]{6,})");
             if (pm.Count > 0) placeId = pm[pm.Count - 1].Groups[1].Value;
 
+            const string guid = @"([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})";
             string[] patterns =
             {
-                @"(?i)serverid\s*[:=]\s*([0-9a-f\-]{36})",
-                @"(?i)gameinstanceid\s*[:=]\s*([0-9a-f\-]{36})",
-                @"(?i)gameid\s*[:=]\s*([0-9a-f\-]{36})",
-                @"(?i)(?:job|rcc|instance)id\s*[:=]\s*([0-9a-f\-]{36})"
+                @"(?i)serverid[^0-9a-f]{0,8}" + guid,
+                @"(?i)gameinstanceid[^0-9a-f]{0,8}" + guid,
+                @"(?i)gameid[^0-9a-f]{0,8}" + guid,
+                @"(?i)(?:job|rcc|instance)id[^0-9a-f]{0,8}" + guid
             };
             foreach (string pattern in patterns)
             {
@@ -2233,6 +2265,20 @@ namespace ArcticJoiner
                     break;
                 }
             }
+
+            // Last resort: the last GUID on a line that also mentions server or job.
+            if (serverId == null)
+            {
+                string[] lines = logText.Replace("\r\n", "\n").Split('\n');
+                for (int i = lines.Length - 1; i >= 0; i--)
+                {
+                    string low = lines[i].ToLowerInvariant();
+                    if (low.IndexOf("server") < 0 && low.IndexOf("job") < 0) continue;
+                    var m = System.Text.RegularExpressions.Regex.Match(lines[i], guid);
+                    if (m.Success) { serverId = m.Groups[1].Value; break; }
+                }
+            }
+
             return placeId != null || serverId != null;
         }
     }
@@ -2397,18 +2443,28 @@ namespace ArcticJoiner
                 }
                 else
                 {
-                    string tail = RobloxLogs.ReadTail(file, 400);
-                    string placeId, serverId;
-                    RobloxLogs.TryFindCurrentServer(tail, out placeId, out serverId);
-                    result = debug + Environment.NewLine
-                        + "matched placeId : " + (placeId != null ? placeId : "(none)") + Environment.NewLine
-                        + "matched serverId: " + (serverId != null ? serverId : "(none)") + Environment.NewLine;
-                    if (serverId == null || placeId == null)
+                    string readError;
+                    string content = RobloxLogs.ReadTextShared(file, out readError);
+                    if (content == null)
                     {
-                        result += Environment.NewLine + "Nothing complete matched - send the lines below so the pattern can be tuned." + Environment.NewLine;
+                        result = debug + Environment.NewLine + "could not read the log: " + readError;
                     }
-                    result += Environment.NewLine + "---- last 20 log lines ----" + Environment.NewLine + RobloxLogs.LastLines(tail, 20);
-                    if (placeId != null || serverId != null) _main.SetLiveServer(placeId, serverId);
+                    else
+                    {
+                        string placeId, serverId;
+                        RobloxLogs.TryFindCurrentServer(content, out placeId, out serverId);
+                        result = debug + Environment.NewLine
+                            + "read " + content.Length + " characters" + Environment.NewLine
+                            + "matched placeId : " + (placeId != null ? placeId : "(none)") + Environment.NewLine
+                            + "matched serverId: " + (serverId != null ? serverId : "(none)") + Environment.NewLine
+                            + Environment.NewLine
+                            + "---- lines mentioning join / server / game / place ----" + Environment.NewLine
+                            + RobloxLogs.InterestingLines(content, 25)
+                            + Environment.NewLine
+                            + "---- last 15 lines ----" + Environment.NewLine
+                            + RobloxLogs.LastLines(content, 15);
+                        if (placeId != null || serverId != null) _main.SetLiveServer(placeId, serverId);
+                    }
                 }
                 try
                 {
@@ -2577,7 +2633,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "2.9.1";
+        public const string Version = "2.9.2";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.

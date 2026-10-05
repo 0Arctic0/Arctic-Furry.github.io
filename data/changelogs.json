@@ -1,6 +1,14 @@
 [
   {
     "date": "2026-10-03",
+    "title": "Windows app v2.9.2: live server log scan fixed",
+    "items": [
+      "The live server window's log scan could not read Roblox's log (the game keeps it open), so it found nothing and showed no lines. It now reads with shared access, so it actually sees the log.",
+      "The scan also prints the lines that mention join/server/game/place, so the server pattern can be tuned against a real log if the server id is not found."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "title": "Windows app v2.9.1: live server stats",
     "items": [
       "New Live server stats window (tray menu): a small always-on-top window showing the player count of the server you are in, refreshed every 30 seconds.",
