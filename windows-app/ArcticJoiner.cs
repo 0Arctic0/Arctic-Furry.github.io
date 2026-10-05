@@ -236,6 +236,8 @@ namespace ArcticJoiner
         private const int WM_HOTKEY = 0x0312;
         private const int HOTKEY_ID = 1;
         private const int HOTKEY_ID2 = 2; // extract-link keybind (Delete)
+        private const int HOTKEY_ID4 = 4; // force-quit Roblox (Ctrl+Insert)
+        private const int HOTKEY_ID5 = 5; // force-quit Roblox (Ctrl+Delete)
         private string _lastAutoJoined = "";
         private string _lastJoinLink = "";
         private string _lastJoinPlaceId = null;
@@ -365,6 +367,14 @@ namespace ArcticJoiner
                 Size = new Size(160, 26)
             };
             _clearHistoryButton.Click += (s, e) => ClearHistory();
+
+            var forceQuitButton = new Button
+            {
+                Text = "Force quit Roblox (Ctrl+Ins/Del)",
+                Location = new Point(170, 290),
+                Size = new Size(240, 26)
+            };
+            forceQuitButton.Click += (s, e) => ForceQuitRoblox();
 
             _status = new Label
             {
@@ -671,6 +681,7 @@ namespace ArcticJoiner
             _settingsPanel.Controls.Add(revertFlagsButton);
             _settingsPanel.Controls.Add(_rejoinCheck);
             _settingsPanel.Controls.Add(_clearHistoryButton);
+            _settingsPanel.Controls.Add(forceQuitButton);
             _settingsPanel.Controls.Add(_extractLabel);
             _settingsPanel.Controls.Add(_changeDeleteKeyButton);
             _settingsPanel.Controls.Add(hint);
@@ -1050,6 +1061,7 @@ namespace ArcticJoiner
             menu.Items.Add("Open Arctic Joiner", null, (s, e) => { Show(); Activate(); });
             menu.Items.Add("Live server stats", null, (s, e) => OpenLiveServer());
             menu.Items.Add("Join from clipboard", null, (s, e) => OnHotkey());
+            menu.Items.Add("Quit Roblox (Ctrl+Insert)", null, (s, e) => ForceQuitRoblox());
             menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
             menu.Items.Add("Exit", null, (s, e) => { _reallyExit = true; Close(); });
             if (_tray == null)
@@ -1122,6 +1134,8 @@ namespace ArcticJoiner
             {
                 if ((int)m.WParam == HOTKEY_ID) OnHotkey();
                 else if ((int)m.WParam == HOTKEY_ID2) OnExtractHotkey();
+                else if ((int)m.WParam == HOTKEY_ID4) ForceQuitRoblox();
+                else if ((int)m.WParam == HOTKEY_ID5) ForceQuitRoblox();
             }
             base.WndProc(ref m);
         }
@@ -1130,6 +1144,8 @@ namespace ArcticJoiner
         {
             try { UnregisterHotKey(Handle, HOTKEY_ID); } catch { }
             try { UnregisterHotKey(Handle, HOTKEY_ID2); } catch { }
+            try { UnregisterHotKey(Handle, HOTKEY_ID4); } catch { }
+            try { UnregisterHotKey(Handle, HOTKEY_ID5); } catch { }
         }
 
         private static Keys ParseKey(string name)
@@ -1215,6 +1231,10 @@ namespace ArcticJoiner
             {
                 RegisterHotKey(Handle, HOTKEY_ID2, (uint)_settings.DeleteMods, (uint)key2);
             }
+            // Force quit needs a modifier on purpose (Ctrl), so an accidental
+            // plain Insert/Delete press can never close your game.
+            RegisterHotKey(Handle, HOTKEY_ID4, 2, (uint)Keys.Insert);
+            RegisterHotKey(Handle, HOTKEY_ID5, 2, (uint)Keys.Delete);
             if (_hotkeyLabel != null)
             {
                 _hotkeyLabel.Text = "Global hotkey: " + HotkeyDescription() +
@@ -1311,28 +1331,30 @@ namespace ArcticJoiner
         }
 
         // Kills any running Roblox client so a fresh join does not stack instances.
-        private static void KillRunningRoblox()
+        private static int KillRunningRoblox()
         {
+            int killed = 0;
             try
             {
                 foreach (Process p in Process.GetProcessesByName("RobloxPlayerBeta"))
                 {
-                    try { p.Kill(); } catch { }
+                    try { p.Kill(); killed++; } catch { }
                 }
                 foreach (Process p in Process.GetProcessesByName("RobloxPlayerLauncher"))
                 {
-                    try { p.Kill(); } catch { }
+                    try { p.Kill(); killed++; } catch { }
                 }
                 foreach (Process p in Process.GetProcessesByName("Froststrap"))
                 {
-                    try { p.Kill(); } catch { }
+                    try { p.Kill(); killed++; } catch { }
                 }
                 foreach (Process p in Process.GetProcessesByName("RobloxCrashHandler"))
                 {
-                    try { p.Kill(); } catch { }
+                    try { p.Kill(); killed++; } catch { }
                 }
             }
             catch { }
+            return killed;
         }
 
         // Speed-focused flags, merged INTO any existing config (never overwrites user settings).
@@ -1929,6 +1951,27 @@ namespace ArcticJoiner
             RenderHistoryItems();
             BuildTrayIcon();
             SetStatus("Removed one recent server.", false);
+        }
+
+        // Force quit: closes every Roblox/Froststrap process. Bound to
+        // Ctrl+Insert / Ctrl+Delete so a plain accidental key can't quit you.
+        private void ForceQuitRoblox()
+        {
+            if (_captureHotkey) return;
+            int killed = KillRunningRoblox();
+            SetStatus(killed > 0
+                ? "Roblox closed (" + killed + " process" + (killed == 1 ? "" : "es") + ")."
+                : "Roblox was not running.", false);
+            try
+            {
+                if (_tray != null)
+                {
+                    _tray.ShowBalloonTip(1500, "Arctic Joiner",
+                        killed > 0 ? "Roblox closed." : "Roblox was not running.", ToolTipIcon.Info);
+                }
+            }
+            catch { }
+            if (_liveForm != null && !_liveForm.IsDisposed) _liveForm.ForceRefresh();
         }
 
         private void ClearHistory()
@@ -2611,6 +2654,11 @@ namespace ArcticJoiner
             _updatedLabel.Text = "Could not copy - the clipboard is busy right now.";
         }
 
+        internal void ForceRefresh()
+        {
+            RefreshStats();
+        }
+
         private void RefreshStats()
         {
             _updatedLabel.Text = "Updating...";
@@ -3007,7 +3055,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "2.9.14";
+        public const string Version = "2.10.0";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.

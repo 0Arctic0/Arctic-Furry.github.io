@@ -1,6 +1,15 @@
 [
   {
     "date": "2026-10-03",
+    "title": "Windows app v2.10.0: force quit Roblox",
+    "items": [
+      "New force quit: close Roblox straight from the joiner - a button in Settings, a tray menu item, or the global hotkeys Ctrl+Insert / Ctrl+Delete.",
+      "The hotkeys need Ctrl on purpose, so an accidental plain Insert or Delete press can never quit you out of a game.",
+      "The live server window updates right away after a force quit."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "title": "Private server game links fixed (app v2.9.14 + site)",
     "items": [
       "Links like roblox.com/games/<id>/Game-Name?privateServerLinkCode=... now join correctly everywhere: the app and the site keep the place id and build roblox://placeId=<id>&linkCode=<code> instead of dropping the game and falling back to the share-links navigation.",

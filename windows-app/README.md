@@ -92,6 +92,10 @@ build through `ArcticJoiner.csproj`.
   and the tray menu can remove individual recent servers or clear them all.
 - **Auto-rejoin:** optionally rejoin your last server automatically if Roblox
   closes or crashes.
+- **Force quit Roblox:** close Roblox from the joiner - a button in Settings, a
+  tray menu item, or the global hotkeys **Ctrl+Insert / Ctrl+Delete**. The
+  modifier is required on purpose, so a plain accidental Insert/Delete press
+  can never quit you from a game.
 - **Server browser (in-app):** the Servers button lists a game's public servers
   with player counts - join any, or join the emptiest. It shows the game name in
   the title and can auto-refresh every 30 seconds.
