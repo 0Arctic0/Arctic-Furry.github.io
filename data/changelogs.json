@@ -1,6 +1,14 @@
 [
   {
     "date": "2026-10-03",
+    "title": "Windows app v2.9.8: live stats no longer die on rate limit + bigger close button",
+    "items": [
+      "Fixed live stats failing entirely when a later server page got rate limited: the fetch now keeps the servers it already found, waits and retries once, and is gentler between pages, so big games work much more reliably.",
+      "The live server window now uses a normal window frame with a bigger close (X) and a minimize button."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "title": "Windows app v2.9.7: live stats work for big games",
     "items": [
       "Fixed the live server window showing not listed for popular games: it only ever fetched the first 100 servers, so your server was invisible in games with hundreds. It now follows Roblox's pagination and covers up to 600 servers, so it finds you in big games too.",
