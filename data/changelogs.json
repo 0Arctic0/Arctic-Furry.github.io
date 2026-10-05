@@ -1,6 +1,15 @@
 [
   {
     "date": "2026-10-03",
+    "title": "Windows app v2.9.1: live server stats",
+    "items": [
+      "New Live server stats window (tray menu): a small always-on-top window showing the player count of the server you are in, refreshed every 30 seconds.",
+      "It knows the server when you joined through the app. If Roblox chose the server itself, Scan Roblox logs finds it from the client log and prints a debug view so the log pattern can be tuned.",
+      "Note: it floats above Roblox in windowed/borderless mode; exclusive fullscreen blocks all external windows."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "title": "Windows app v2.9.0: server browser actually works, watchlist removed",
     "items": [
       "The server browser now calls Roblox's API directly instead of going through the flaky roproxy mirror (a desktop app has no browser CORS limits). The mirror is only a fallback now, so the Servers window should list servers reliably.",

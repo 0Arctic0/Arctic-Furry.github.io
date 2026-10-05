@@ -95,6 +95,12 @@ build through `ArcticJoiner.csproj`.
 - **Server browser (in-app):** the Servers button lists a game's public servers
   with player counts - join any, or join the emptiest. It shows the game name in
   the title and can auto-refresh every 30 seconds.
+- **Live server stats:** the tray menu's "Live server stats" opens a small
+  always-on-top window showing the player count of the server you are in (updated
+  every 30 seconds). It knows the server when you joined through the app; if
+  Roblox picked it, press "Scan Roblox logs" to find it from the client log.
+  Note: it floats above Roblox in windowed/borderless mode - exclusive fullscreen
+  blocks every external window, which is a Windows limit.
 - **User sniping moved to the website:** open `/snipe` on the site, type a
   username or user ID, and it finds their exact public server and gives you a
   one-tap roblox:// join. (Removed from the desktop app to keep it lean.)
