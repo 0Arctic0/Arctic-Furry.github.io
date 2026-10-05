@@ -2287,6 +2287,20 @@ namespace ArcticJoiner
             return best;
         }
 
+        // The game log only updates while you are actually playing - the moment
+        // you leave, it goes silent even though the player process can stay
+        // alive at the app's main page. This is the reliable "still in game?"
+        // signal, together with the process check.
+        internal static bool IsLogActive(string file, int withinSeconds)
+        {
+            if (string.IsNullOrEmpty(file)) return false;
+            try
+            {
+                return (DateTime.Now - File.GetLastWriteTime(file)).TotalSeconds <= withinSeconds;
+            }
+            catch { return false; }
+        }
+
         // Reads a log file even while the game still has it open for writing.
         // Roblox keeps its log open, so a plain read can fail (that is why the
         // first version showed no lines and no matches at all).
@@ -2331,7 +2345,7 @@ namespace ArcticJoiner
             return sb.ToString();
         }
 
-        // Finds the server's public address in the log (used for region + latency).
+        // Finds the server's public address in the log (used for the region lookup).
         // The UDMUX line looks like:
         //   [FLog::Network] UDMUX Address = 128.116.30.33, Port = 51776 | RCC ...
         internal static bool TryFindServerAddress(string logText, out string ip, out int port)
@@ -2427,7 +2441,6 @@ namespace ArcticJoiner
         private readonly Label _updatedLabel;
         private readonly Label _regionValue;
         private readonly Label _pingValue;
-        private readonly Label _latencyValue;
         private readonly Label _fpsValue;
         private readonly Label _serverValue;
         private readonly Label _placeValue;
@@ -2438,7 +2451,6 @@ namespace ArcticJoiner
         private int _serverPort;
         private string _geoIp;
         private string _geoText;
-        private string _latencyText;
 
         public LiveServerForm(JoinerForm main)
         {
@@ -2479,16 +2491,15 @@ namespace ArcticJoiner
 
             _regionValue = AddRow("Region", 88);
             _pingValue = AddRow("Ping", 108);
-            _latencyValue = AddRow("Latency", 128);
-            _fpsValue = AddRow("FPS", 148);
-            _serverValue = AddRow("Server", 168);
-            _placeValue = AddRow("Place", 188);
+            _fpsValue = AddRow("FPS", 128);
+            _serverValue = AddRow("Server", 148);
+            _placeValue = AddRow("Place", 168);
 
             _updatedLabel = new Label
             {
                 Text = "",
                 AutoSize = false,
-                Location = new Point(16, 214),
+                Location = new Point(16, 194),
                 Size = new Size(438, 16),
                 ForeColor = SystemColors.GrayText,
                 AutoEllipsis = true,
@@ -2610,7 +2621,10 @@ namespace ArcticJoiner
                 // process). The log keeps its last "Joining game" line forever,
                 // so without this check the window would show a server you
                 // already left.
-                if (!JoinerForm.IsRobloxRunning())
+                string dbg;
+                string newestLog = RobloxLogs.NewestLogFile(out dbg);
+                bool inGame = JoinerForm.IsRobloxRunning() && RobloxLogs.IsLogActive(newestLog, 12);
+                if (!inGame)
                 {
                     _main.LiveClear();
                     try
@@ -2621,11 +2635,12 @@ namespace ArcticJoiner
                             _playersLabel.Text = "";
                             _regionValue.Text = "-";
                             _pingValue.Text = "-";
-                            _latencyValue.Text = "-";
                             _fpsValue.Text = "-";
                             _serverValue.Text = "-";
                             _placeValue.Text = "-";
-                            _updatedLabel.Text = "Roblox is closed - stats return when you join a game.";
+                            _updatedLabel.Text = JoinerForm.IsRobloxRunning()
+                                ? "Roblox is at its menu, not in a game - stats return when you join."
+                                : "Roblox is closed - stats return when you join a game.";
                         });
                     }
                     catch { }
@@ -2661,7 +2676,6 @@ namespace ArcticJoiner
                 }
 
                 string region = GeoFor(_serverIp);
-                string latency = LatencyFor(_serverIp, _serverPort);
                 try
                 {
                     Invoke((MethodInvoker)delegate
@@ -2672,7 +2686,6 @@ namespace ArcticJoiner
                             _playersLabel.Text = "";
                             _regionValue.Text = "-";
                             _pingValue.Text = "-";
-                            _latencyValue.Text = "-";
                             _fpsValue.Text = "-";
                             _serverValue.Text = "-";
                             _placeValue.Text = "-";
@@ -2686,7 +2699,6 @@ namespace ArcticJoiner
                         else _playersLabel.Text = "beyond Roblox's list";
                         _regionValue.Text = region != null ? region : (_serverIp != null ? "unknown" : "-");
                         _pingValue.Text = mine != null && mine.Ping > 0 ? mine.Ping + " ms (Roblox)" : "-";
-                        _latencyValue.Text = latency != null ? latency : "-";
                         _fpsValue.Text = mine != null && mine.Fps > 0 ? mine.Fps.ToString("0.0") : "-";
                         _serverValue.Text = server != null ? server : "-";
                         _placeValue.Text = place != null ? place : "-";
@@ -2729,7 +2741,6 @@ namespace ArcticJoiner
                     _serverPort = port;
                     _geoIp = null;
                     _geoText = null;
-                    _latencyText = null;
                 }
             }
             catch { }
@@ -2774,31 +2785,6 @@ namespace ArcticJoiner
             return json.Substring(i, j - i);
         }
 
-        // Measures our own TCP latency to the server (best of a few tries).
-        private string LatencyFor(string ip, int port)
-        {
-            if (ip == null || port <= 0) return null;
-            if (_latencyText != null) return _latencyText;
-            try
-            {
-                int best = int.MaxValue;
-                for (int attempt = 0; attempt < 3; attempt++)
-                {
-                    var sw = System.Diagnostics.Stopwatch.StartNew();
-                    using (var client = new System.Net.Sockets.TcpClient())
-                    {
-                        var task = client.ConnectAsync(ip, port);
-                        if (!task.Wait(3000)) break;
-                        sw.Stop();
-                        int ms = (int)sw.ElapsedMilliseconds;
-                        if (ms < best) best = ms;
-                    }
-                }
-                if (best != int.MaxValue) _latencyText = best + " ms (ours)";
-            }
-            catch { }
-            return _latencyText;
-        }
 
         private void ScanLogs()
         {
@@ -2843,7 +2829,6 @@ namespace ArcticJoiner
                         _serverPort = sport;
                         _geoIp = null;
                         _geoText = null;
-                        _latencyText = null;
                     }
                     }
                 }
@@ -3014,7 +2999,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "2.9.12";
+        public const string Version = "2.9.13";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.
