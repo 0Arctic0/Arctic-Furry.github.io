@@ -1,6 +1,14 @@
 [
   {
     "date": "2026-10-03",
+    "title": "Windows app v2.9.3: live server ids read correctly + cleaner window",
+    "items": [
+      "The live server scan now reads the server id from the right place: the GUID in the log line \"! Joining game '<serverGuid>' place <placeId>\". The old pattern grabbed digits out of that GUID as the place id, so it matched nonsense.",
+      "The live window looks better: the player count is the headline, the game name sits above it, the server id is truncated to fit, and the debug text is now behind a Debug button instead of always being shown."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "title": "Windows app v2.9.2: live server log scan fixed",
     "items": [
       "The live server window's log scan could not read Roblox's log (the game keeps it open), so it found nothing and showed no lines. It now reads with shared access, so it actually sees the log.",

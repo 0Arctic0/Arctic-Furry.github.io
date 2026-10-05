@@ -2243,39 +2243,46 @@ namespace ArcticJoiner
             serverId = null;
             if (string.IsNullOrEmpty(logText)) return false;
 
-            var pm = System.Text.RegularExpressions.Regex.Matches(logText, @"(?i)joining game[^0-9]{0,10}([0-9]+)");
-            if (pm.Count == 0) pm = System.Text.RegularExpressions.Regex.Matches(logText, @"(?i)placeid[^0-9]{0,10}([0-9]+)");
-            if (pm.Count == 0) pm = System.Text.RegularExpressions.Regex.Matches(logText, @"(?i)place ([0-9]{6,})");
-            if (pm.Count > 0) placeId = pm[pm.Count - 1].Groups[1].Value;
-
             const string guid = @"([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})";
-            string[] patterns =
+
+            // The join line carries BOTH ids on one line:
+            //   ! Joining game '<serverGuid>' place <placeId> at <ip>
+            // The quoted value is the server/job id - exactly what a join link
+            // calls gameInstanceId. ("serverId: <ip>|<port>" is only an address
+            // and "sid:" is a session id - neither one is the server.)
+            var joins = System.Text.RegularExpressions.Regex.Matches(logText, @"(?i)joining game[^\r\n]*");
+            if (joins.Count > 0)
             {
-                @"(?i)serverid[^0-9a-f]{0,8}" + guid,
-                @"(?i)gameinstanceid[^0-9a-f]{0,8}" + guid,
-                @"(?i)gameid[^0-9a-f]{0,8}" + guid,
-                @"(?i)(?:job|rcc|instance)id[^0-9a-f]{0,8}" + guid
-            };
-            foreach (string pattern in patterns)
-            {
-                var m = System.Text.RegularExpressions.Regex.Matches(logText, pattern);
-                if (m.Count > 0)
-                {
-                    serverId = m[m.Count - 1].Groups[1].Value;
-                    break;
-                }
+                string line = joins[joins.Count - 1].Value;
+                var g = System.Text.RegularExpressions.Regex.Match(line, guid);
+                if (g.Success) serverId = g.Groups[1].Value;
+                var p = System.Text.RegularExpressions.Regex.Match(line, @"(?i)place[^0-9]{0,5}([0-9]{6,})");
+                if (p.Success) placeId = p.Groups[1].Value;
             }
 
-            // Last resort: the last GUID on a line that also mentions server or job.
+            if (placeId == null)
+            {
+                var pm = System.Text.RegularExpressions.Regex.Matches(logText, @"(?i)placeid[^0-9]{0,5}([0-9]{6,})");
+                if (pm.Count > 0) placeId = pm[pm.Count - 1].Groups[1].Value;
+            }
+
             if (serverId == null)
             {
-                string[] lines = logText.Replace("\r\n", "\n").Split('\n');
-                for (int i = lines.Length - 1; i >= 0; i--)
+                string[] patterns =
                 {
-                    string low = lines[i].ToLowerInvariant();
-                    if (low.IndexOf("server") < 0 && low.IndexOf("job") < 0) continue;
-                    var m = System.Text.RegularExpressions.Regex.Match(lines[i], guid);
-                    if (m.Success) { serverId = m.Groups[1].Value; break; }
+                    @"(?i)gameinstanceid[^0-9a-f]{0,8}" + guid,
+                    @"(?i)serverid[^0-9a-f]{0,8}" + guid,
+                    @"(?i)gameid[^0-9a-f]{0,8}" + guid,
+                    @"(?i)sid[^0-9a-f]{0,3}" + guid
+                };
+                foreach (string pattern in patterns)
+                {
+                    var m = System.Text.RegularExpressions.Regex.Matches(logText, pattern);
+                    if (m.Count > 0)
+                    {
+                        serverId = m[m.Count - 1].Groups[1].Value;
+                        break;
+                    }
                 }
             }
 
@@ -2306,73 +2313,86 @@ namespace ArcticJoiner
             catch { }
             FormBorderStyle = FormBorderStyle.SizableToolWindow;
             StartPosition = FormStartPosition.CenterScreen;
-            ClientSize = new Size(440, 310);
-            MinimumSize = new Size(380, 240);
+            Font = new Font("Segoe UI", 9F);
+            ClientSize = new Size(430, 212);
+            MinimumSize = new Size(390, 212);
+            MaximizeBox = false;
             TopMost = true;
 
             _gameLabel = new Label
             {
                 Text = "No game yet",
-                Font = new Font("Segoe UI", 12F, FontStyle.Bold),
+                Font = new Font("Segoe UI", 13F, FontStyle.Bold),
                 AutoSize = false,
-                Location = new Point(12, 12),
-                Size = new Size(416, 24),
+                Location = new Point(16, 14),
+                Size = new Size(398, 24),
+                AutoEllipsis = true,
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
+            };
+            _playersLabel = new Label
+            {
+                Text = "",
+                Font = new Font("Segoe UI", 20F, FontStyle.Bold),
+                AutoSize = false,
+                Location = new Point(16, 40),
+                Size = new Size(398, 38),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
             };
             _serverLabel = new Label
             {
                 Text = "",
                 AutoSize = false,
-                Location = new Point(12, 40),
-                Size = new Size(416, 18),
+                Location = new Point(16, 82),
+                Size = new Size(398, 16),
                 ForeColor = SystemColors.GrayText,
-                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
-            };
-            _playersLabel = new Label
-            {
-                Text = "",
-                Font = new Font("Segoe UI", 16F, FontStyle.Bold),
-                AutoSize = false,
-                Location = new Point(12, 62),
-                Size = new Size(416, 30),
+                AutoEllipsis = true,
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
             };
             _updatedLabel = new Label
             {
                 Text = "",
                 AutoSize = false,
-                Location = new Point(12, 96),
-                Size = new Size(416, 18),
+                Location = new Point(16, 100),
+                Size = new Size(398, 16),
                 ForeColor = SystemColors.GrayText,
+                AutoEllipsis = true,
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
             };
-            var refreshBtn = new Button { Text = "Refresh", Location = new Point(12, 120), Size = new Size(110, 28) };
-            var scanBtn = new Button { Text = "Scan Roblox logs", Location = new Point(130, 120), Size = new Size(140, 28) };
-            _topCheck = new CheckBox { Text = "Always on top", Checked = true, AutoSize = true, Location = new Point(284, 126) };
+            var refreshBtn = new Button { FlatStyle = FlatStyle.System, Text = "Refresh", Location = new Point(16, 126), Size = new Size(96, 28) };
+            var scanBtn = new Button { FlatStyle = FlatStyle.System, Text = "Scan Roblox logs", Location = new Point(120, 126), Size = new Size(132, 28) };
+            var debugBtn = new Button { FlatStyle = FlatStyle.System, Text = "Debug", Location = new Point(260, 126), Size = new Size(76, 28) };
+            _topCheck = new CheckBox { Text = "On top", Checked = true, AutoSize = true, Location = new Point(346, 132) };
             _debugBox = new TextBox
             {
                 Multiline = true,
                 ReadOnly = true,
                 ScrollBars = ScrollBars.Vertical,
                 WordWrap = false,
-                Location = new Point(12, 156),
-                Size = new Size(416, 142),
+                Visible = false,
+                Location = new Point(16, 164),
+                Size = new Size(398, 142),
                 Font = new Font("Consolas", 8F),
-                BackColor = Color.FromArgb(245, 245, 245),
-                Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
+                BackColor = Color.FromArgb(250, 250, 250),
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
             };
 
             Controls.Add(_gameLabel);
-            Controls.Add(_serverLabel);
             Controls.Add(_playersLabel);
+            Controls.Add(_serverLabel);
             Controls.Add(_updatedLabel);
             Controls.Add(refreshBtn);
             Controls.Add(scanBtn);
+            Controls.Add(debugBtn);
             Controls.Add(_topCheck);
             Controls.Add(_debugBox);
 
             refreshBtn.Click += (s, e) => RefreshStats();
             scanBtn.Click += (s, e) => ScanLogs();
+            debugBtn.Click += (s, e) =>
+            {
+                _debugBox.Visible = !_debugBox.Visible;
+                ClientSize = new Size(ClientSize.Width, _debugBox.Visible ? 320 : 212);
+            };
             _topCheck.CheckedChanged += (s, e) => TopMost = _topCheck.Checked;
 
             Shown += (s, e) => RefreshStats();
@@ -2419,10 +2439,11 @@ namespace ArcticJoiner
                     Invoke((MethodInvoker)delegate
                     {
                         _gameLabel.Text = name != null ? name : (place != null ? "Place " + place : "Unknown game");
-                        if (mine != null) _playersLabel.Text = mine.Playing + " / " + mine.MaxPlayers + " players";
-                        else if (server == null) _playersLabel.Text = servers.Count + " public servers";
-                        else _playersLabel.Text = "not in the public list";
-                        _updatedLabel.Text = "Updated " + DateTime.Now.ToString("HH:mm:ss") + " (every 30s)";
+                        if (mine != null && mine.MaxPlayers > 0) _playersLabel.Text = mine.Playing + " / " + mine.MaxPlayers;
+                        else if (mine != null) _playersLabel.Text = mine.Playing + " playing";
+                        else if (server == null) _playersLabel.Text = servers.Count + " servers";
+                        else _playersLabel.Text = "not in the list";
+                        _updatedLabel.Text = "Updated " + DateTime.Now.ToString("HH:mm:ss") + " - every 30s";
                     });
                 }
                 catch { }
@@ -2633,7 +2654,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "2.9.2";
+        public const string Version = "2.9.3";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.
