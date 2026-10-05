@@ -20,6 +20,7 @@ Static GitHub Pages join helper for Roblox public servers and private server lin
 
 ## Routes
 
+- `/` - the home page: links to every tool and the Windows app
 - `/menu` - manual input page
 - `/invite` - opens a generated join page
 - `/ps` - private servers and community submissions

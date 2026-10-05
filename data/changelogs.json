@@ -1,6 +1,14 @@
 [
   {
     "date": "2026-10-03",
+    "title": "New home page",
+    "items": [
+      "Visiting the site root now shows a proper Arctic Joiner landing page with every tool and the Windows app, instead of instantly redirecting to the menu.",
+      "Every page gained a Home button, and unknown URLs now fall back to the home page."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "title": "Windows app v2.8.5: fast flags fixed",
     "items": [
       "Fast flags no longer write the render/loading debug flags that caused lag and glitches (FFlagDebugDisableLoadingScreen, DFIntLoadingScreenDelay, FFlagRenderDebugCheckThreading2, FFlagDebugGraphicsSkipVramChecks). Only the safe ones remain: splash skip, bootstrapper update check skip, and the telemetry killers.",

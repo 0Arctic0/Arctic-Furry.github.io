@@ -5,14 +5,81 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="icon" type="image/svg+xml" href="favicon.svg" />
   <link rel="alternate icon" href="windows-app/icon.ico" />
-  <title>Joiner</title>
-  <meta http-equiv="refresh" content="0; url=./menu/" />
-  <link rel="canonical" href="./menu/" />
-  <script>
-    window.location.replace('./menu/' + window.location.search + window.location.hash);
-  </script>
+  <meta name="description" content="Arctic Joiner - instant Roblox joins. Paste any link, browse or hop servers, watch for open slots, or find a friend's server." />
+  <link rel="canonical" href="https://arctic0dev.github.io/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Arctic Joiner" />
+  <meta property="og:title" content="Arctic Joiner - instant Roblox joins" />
+  <meta property="og:description" content="Paste any link, browse or hop servers, watch for open slots, or find a friend's server." />
+  <meta property="og:url" content="https://arctic0dev.github.io/" />
+  <meta property="og:image" content="https://arctic0dev.github.io/favicon.svg" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="theme-color" content="#0f1117" />
+  <title>Arctic Joiner - instant Roblox joins</title>
+  <link rel="stylesheet" href="styles.css" />
 </head>
-<body>
-  <p>Redirecting to <a href="./menu/">menu</a>…</p>
+<body data-page="home">
+  <main class="page">
+    <section class="card card-wide">
+      <h1>Arctic Joiner</h1>
+      <p>Instant Roblox joins. Paste any link and get a one-tap join, browse a game's servers with live player counts, hop until you land a quiet one, or watch a game until a slot opens.</p>
+
+      <div class="buttons">
+        <a class="button" href="./menu/">Join by Link</a>
+        <a class="button" href="./servers/">Browse Servers</a>
+        <a class="button secondary" href="./hop/">Hop Servers</a>
+      </div>
+
+      <div class="divider"></div>
+      <h2>Pick a tool</h2>
+      <div class="games-grid">
+        <article class="game-card">
+          <div class="game-thumb">🔗</div>
+          <h2>Join by Link</h2>
+          <p>Paste any Roblox link - public, private, or games/start with launch data - and it is detected automatically.</p>
+          <div class="game-actions"><a class="button" href="./menu/">Open Menu</a></div>
+        </article>
+        <article class="game-card">
+          <div class="game-thumb">🖥️</div>
+          <h2>Server Browser</h2>
+          <p>See every public server of any game with live player counts, join one directly, or copy invite links.</p>
+          <div class="game-actions"><a class="button" href="./servers/">Browse Servers</a></div>
+        </article>
+        <article class="game-card">
+          <div class="game-thumb">🔄</div>
+          <h2>Server Hop</h2>
+          <p>Hop into a different public server on demand - pick the emptiest, or keep hopping every 30 seconds.</p>
+          <div class="game-actions"><a class="button" href="./hop/">Hop Now</a></div>
+        </article>
+        <article class="game-card">
+          <div class="game-thumb">👀</div>
+          <h2>Server Watch</h2>
+          <p>Watch a game and get told the moment a server has an open slot - auto-join optional.</p>
+          <div class="game-actions"><a class="button" href="./watch/">Start Watching</a></div>
+        </article>
+        <article class="game-card">
+          <div class="game-thumb">🎯</div>
+          <h2>User Sniper</h2>
+          <p>Type a username or user ID and find the exact public server they are in, with a one-tap join.</p>
+          <div class="game-actions"><a class="button" href="./snipe/">Snipe</a></div>
+        </article>
+        <article class="game-card">
+          <div class="game-thumb">🚪</div>
+          <h2>Private Servers</h2>
+          <p>Curated Roblox private servers plus community-submitted share links, with local favorites.</p>
+          <div class="game-actions"><a class="button" href="./ps/">Open List</a></div>
+        </article>
+      </div>
+
+      <div class="divider"></div>
+      <h2>Windows app</h2>
+      <p>Paste a Roblox link and it launches Froststrap instantly - no browser. Global hotkeys, an in-app server browser, auto-rejoin, and a game watchlist, all in one small exe that self-updates from GitHub.</p>
+      <div class="buttons">
+        <a class="button" href="https://github.com/Arctic0Dev/Arctic0Dev.github.io/tree/main/windows-app" target="_blank" rel="noopener">Get the Windows App</a>
+        <a class="button secondary" href="./changelogs/">Changelogs</a>
+      </div>
+    </section>
+  </main>
 </body>
 </html>
+
