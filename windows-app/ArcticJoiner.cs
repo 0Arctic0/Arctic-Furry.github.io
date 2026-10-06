@@ -230,7 +230,7 @@ namespace ArcticJoiner
         private readonly Panel _settingsPanel;
         private readonly Button _updateButton;
         private readonly Button _updateButtonPanel;
-        private readonly ComboBox _linkBox;
+        private readonly TextBox _linkBox;
         private readonly Label _hotkeyLabel;
         private readonly Label _extractLabel;
         private readonly Button _changeHotkeyButton;
@@ -292,12 +292,13 @@ namespace ArcticJoiner
                 Location = new Point(16, 14)
             };
 
-            _linkBox = new ComboBox
+            // A plain TextBox: the paste box no longer has a dropdown (history
+            // has its own button), and a ComboBox always shows an arrow.
+            _linkBox = new TextBox
             {
                 Location = new Point(16, 38),
                 Width = 588,
-                DropDownStyle = ComboBoxStyle.DropDown,
-                FlatStyle = FlatStyle.System,
+                BorderStyle = BorderStyle.FixedSingle,
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
             };
             _linkBox.Font = new Font(_linkBox.Font, FontStyle.Bold);
@@ -3072,7 +3073,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "2.10.3";
+        public const string Version = "2.10.4";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.

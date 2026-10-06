@@ -1,6 +1,13 @@
 [
   {
     "date": "2026-10-03",
+    "title": "Windows app v2.10.4: paste box is a plain text box",
+    "items": [
+      "The paste box was a combo box, so it kept showing a dropdown arrow even though history moved to its own button. It is a plain text box now - no arrow, same paste-and-press-Enter behaviour."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "title": "Windows app v2.10.3: key labels fit + History button",
     "items": [
       "The Change key button was only 80px wide, so its label was clipped to just \"Change key\" and never showed the key. It is wider now and reads Change key (Ctrl+Delete)..., matching Change hotkey (Ctrl+Insert)....",
