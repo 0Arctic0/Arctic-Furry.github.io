@@ -1,6 +1,13 @@
 [
   {
     "date": "2026-10-03",
+    "title": "Windows app v2.10.2: recent joins no longer listed in the tray",
+    "items": [
+      "The tray menu no longer lists recent joins (the raw links cluttered it) and the Remove a recent server submenu is gone with it. History still powers Prev Server and the paste-box dropdown, and Clear history stays in the tray as a one-click wipe."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "title": "Windows app v2.10.1: join/extract hotkeys need Ctrl, force quit has no hotkey",
     "items": [
       "The join and extract hotkeys now default to Ctrl+Insert and Ctrl+Delete, so a stray plain Insert or Delete press while you are playing can no longer close your game and jump you into another server. Existing plain Insert/Delete settings are upgraded once automatically (you can still change the keys in Settings).",

@@ -1053,21 +1053,11 @@ namespace ArcticJoiner
         {
             var menu = new ContextMenuStrip();
 
-            // Quick rejoin: the last few joined links, named where known.
-            foreach (string entry in _history)
-            {
-                string copy = entry;
-                menu.Items.Add(HistoryDisplay(copy), null, (s, e) => TryJoin(copy, closeAfter: false));
-            }
+            // The recent-join list is no longer listed in the tray (raw links made
+            // it cluttered) - history still drives Prev Server and the paste-box
+            // dropdown, and Clear history stays here as a one-click wipe.
             if (_history.Count > 0)
             {
-                var removeMenu = new ToolStripMenuItem("Remove a recent server...");
-                foreach (string entry in _history)
-                {
-                    string copy = entry;
-                    removeMenu.DropDownItems.Add(HistoryDisplay(copy), null, (s, e) => RemoveHistoryEntry(copy));
-                }
-                menu.Items.Add(removeMenu);
                 menu.Items.Add("Clear history", null, (s, e) => ClearHistory());
             }
             menu.Items.Add("Open Arctic Joiner", null, (s, e) => { Show(); Activate(); });
@@ -1947,18 +1937,8 @@ namespace ArcticJoiner
 
         // ---- History helpers ----
 
-        private void RemoveHistoryEntry(string raw)
-        {
-            _history.RemoveAll(h => h.Equals(raw, StringComparison.OrdinalIgnoreCase));
-            _historyNames.Remove(raw);
-            try { File.WriteAllLines(HistoryFile(), _history.ToArray()); } catch { }
-            RenderHistoryItems();
-            BuildTrayIcon();
-            SetStatus("Removed one recent server.", false);
-        }
-
-        // Force quit: closes every Roblox/Froststrap process. Bound to
-        // Ctrl+Insert / Ctrl+Delete so a plain accidental key can't quit you.
+        // Force quit: closes every Roblox/Froststrap process. Deliberately has no
+        // hotkey, so it can only run from the Settings button or the tray menu.
         private void ForceQuitRoblox()
         {
             if (_captureHotkey) return;
@@ -3059,7 +3039,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "2.10.1";
+        public const string Version = "2.10.2";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.
