@@ -76,9 +76,11 @@ build through `ArcticJoiner.csproj`.
 ## Use
 
 - Open the exe, paste a link and press **Enter** / click **Join**.
-- **Global hotkey** (default `Insert`, fully customizable in settings):
+- **Global hotkey** (default `Ctrl+Insert`, fully customizable in settings):
   press it anywhere in Windows — Discord, browser, anywhere — and it instantly
-  joins whatever Roblox link is on your clipboard. No window needed.
+  joins whatever Roblox link is on your clipboard. No window needed. The Ctrl
+  modifier means a stray plain Insert while playing cannot close your game and
+  jump you into another server (the extract key is `Ctrl+Delete` the same way).
 - **Tray mode:** closing the window hides it to the system tray (it keeps the
   hotkey alive). Right-click the tray icon to open it or exit. Pin it to your
   taskbar for one-click access.
@@ -92,10 +94,8 @@ build through `ArcticJoiner.csproj`.
   and the tray menu can remove individual recent servers or clear them all.
 - **Auto-rejoin:** optionally rejoin your last server automatically if Roblox
   closes or crashes.
-- **Force quit Roblox:** close Roblox from the joiner - a button in Settings, a
-  tray menu item, or the global hotkeys **Ctrl+Insert / Ctrl+Delete**. The
-  modifier is required on purpose, so a plain accidental Insert/Delete press
-  can never quit you from a game.
+- **Force quit Roblox:** close Roblox from the joiner - a button in Settings or
+  the tray menu. No hotkey, so it can never fire by accident.
 - **Server browser (in-app):** the Servers button lists a game's public servers
   with player counts - join any, or join the emptiest. It shows the game name in
   the title and can auto-refresh every 30 seconds.

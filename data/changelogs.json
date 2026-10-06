@@ -1,6 +1,14 @@
 [
   {
     "date": "2026-10-03",
+    "title": "Windows app v2.10.1: join/extract hotkeys need Ctrl, force quit has no hotkey",
+    "items": [
+      "The join and extract hotkeys now default to Ctrl+Insert and Ctrl+Delete, so a stray plain Insert or Delete press while you are playing can no longer close your game and jump you into another server. Existing plain Insert/Delete settings are upgraded once automatically (you can still change the keys in Settings).",
+      "Force quit Roblox no longer has a hotkey - it is only the Settings button and the tray menu item now, so it can never fire by accident."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "title": "Windows app v2.10.0: force quit Roblox",
     "items": [
       "New force quit: close Roblox straight from the joiner - a button in Settings, a tray menu item, or the global hotkeys Ctrl+Insert / Ctrl+Delete.",

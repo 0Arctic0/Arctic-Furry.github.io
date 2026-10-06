@@ -88,10 +88,11 @@ namespace ArcticJoiner
         public string FroststrapPath = "";
         public bool InstantHotkeyJoin = true;
         public bool CloseAfterJoin = false;
-        public int HotkeyMods = 0;        // no modifiers needed by default
-        public string HotkeyKey = "Insert";
-        public int DeleteMods = 0;        // second keybind: extract a link from copied text
+        public int HotkeyMods = 2;        // Ctrl by default - a stray Insert while
+        public string HotkeyKey = "Insert";  // in a game would otherwise close it
+        public int DeleteMods = 2;        // Ctrl by default (extract keybind)
         public string DeleteKey = "Delete";
+        public bool HotkeyModsMigrated = false; // one-time plain -> Ctrl upgrade
         public bool AlwaysOnTop = false;
         public bool KillBeforeJoin = true;
         public bool AutoRejoin = false;   // rejoin the last server if Roblox closes
@@ -148,7 +149,19 @@ namespace ArcticJoiner
                         else if (key == "autoRejoin") s.AutoRejoin = val == "1";
                         else if (key == "windowLeft") { int n; if (int.TryParse(val, out n)) s.WindowLeft = n; }
                         else if (key == "windowTop") { int n; if (int.TryParse(val, out n)) s.WindowTop = n; }
+                        else if (key == "hotkeyModsMigrated") s.HotkeyModsMigrated = val == "1";
                     }
+                }
+
+                // One-time upgrade: plain Insert/Delete were too easy to hit by
+                // accident (a stray Insert while in a game closes it and rejoins),
+                // so they become Ctrl+Insert / Ctrl+Delete.
+                if (!s.HotkeyModsMigrated)
+                {
+                    if (s.HotkeyMods == 0 && string.Equals(s.HotkeyKey, "Insert", StringComparison.OrdinalIgnoreCase)) s.HotkeyMods = 2;
+                    if (s.DeleteMods == 0 && string.Equals(s.DeleteKey, "Delete", StringComparison.OrdinalIgnoreCase)) s.DeleteMods = 2;
+                    s.HotkeyModsMigrated = true;
+                    s.Save();
                 }
             }
             catch { }
@@ -174,6 +187,7 @@ namespace ArcticJoiner
                     .AppendLine("autoRejoin=" + (AutoRejoin ? "1" : "0"))
                     .AppendLine("windowLeft=" + WindowLeft)
                     .AppendLine("windowTop=" + WindowTop)
+                    .AppendLine("hotkeyModsMigrated=" + (HotkeyModsMigrated ? "1" : "0"))
                     .ToString());
             }
             catch { }
@@ -236,8 +250,6 @@ namespace ArcticJoiner
         private const int WM_HOTKEY = 0x0312;
         private const int HOTKEY_ID = 1;
         private const int HOTKEY_ID2 = 2; // extract-link keybind (Delete)
-        private const int HOTKEY_ID4 = 4; // force-quit Roblox (Ctrl+Insert)
-        private const int HOTKEY_ID5 = 5; // force-quit Roblox (Ctrl+Delete)
         private string _lastAutoJoined = "";
         private string _lastJoinLink = "";
         private string _lastJoinPlaceId = null;
@@ -370,7 +382,7 @@ namespace ArcticJoiner
 
             var forceQuitButton = new Button
             {
-                Text = "Force quit Roblox (Ctrl+Ins/Del)",
+                Text = "Force quit Roblox",
                 Location = new Point(170, 290),
                 Size = new Size(240, 26)
             };
@@ -1061,7 +1073,7 @@ namespace ArcticJoiner
             menu.Items.Add("Open Arctic Joiner", null, (s, e) => { Show(); Activate(); });
             menu.Items.Add("Live server stats", null, (s, e) => OpenLiveServer());
             menu.Items.Add("Join from clipboard", null, (s, e) => OnHotkey());
-            menu.Items.Add("Quit Roblox (Ctrl+Insert)", null, (s, e) => ForceQuitRoblox());
+            menu.Items.Add("Quit Roblox", null, (s, e) => ForceQuitRoblox());
             menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
             menu.Items.Add("Exit", null, (s, e) => { _reallyExit = true; Close(); });
             if (_tray == null)
@@ -1134,8 +1146,6 @@ namespace ArcticJoiner
             {
                 if ((int)m.WParam == HOTKEY_ID) OnHotkey();
                 else if ((int)m.WParam == HOTKEY_ID2) OnExtractHotkey();
-                else if ((int)m.WParam == HOTKEY_ID4) ForceQuitRoblox();
-                else if ((int)m.WParam == HOTKEY_ID5) ForceQuitRoblox();
             }
             base.WndProc(ref m);
         }
@@ -1144,8 +1154,6 @@ namespace ArcticJoiner
         {
             try { UnregisterHotKey(Handle, HOTKEY_ID); } catch { }
             try { UnregisterHotKey(Handle, HOTKEY_ID2); } catch { }
-            try { UnregisterHotKey(Handle, HOTKEY_ID4); } catch { }
-            try { UnregisterHotKey(Handle, HOTKEY_ID5); } catch { }
         }
 
         private static Keys ParseKey(string name)
@@ -1231,10 +1239,6 @@ namespace ArcticJoiner
             {
                 RegisterHotKey(Handle, HOTKEY_ID2, (uint)_settings.DeleteMods, (uint)key2);
             }
-            // Force quit needs a modifier on purpose (Ctrl), so an accidental
-            // plain Insert/Delete press can never close your game.
-            RegisterHotKey(Handle, HOTKEY_ID4, 2, (uint)Keys.Insert);
-            RegisterHotKey(Handle, HOTKEY_ID5, 2, (uint)Keys.Delete);
             if (_hotkeyLabel != null)
             {
                 _hotkeyLabel.Text = "Global hotkey: " + HotkeyDescription() +
@@ -3055,7 +3059,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "2.10.0";
+        public const string Version = "2.10.1";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.
