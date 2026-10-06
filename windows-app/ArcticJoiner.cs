@@ -380,6 +380,14 @@ namespace ArcticJoiner
             };
             _clearHistoryButton.Click += (s, e) => ClearHistory();
 
+            var historyButton = new Button
+            {
+                Text = "History",
+                Location = new Point(420, 290),
+                Size = new Size(160, 26)
+            };
+            historyButton.Click += (s, e) => ShowHistoryMenu(historyButton);
+
             var forceQuitButton = new Button
             {
                 Text = "Force quit Roblox",
@@ -639,7 +647,7 @@ namespace ArcticJoiner
             {
                 Text = "Change hotkey (" + HotkeyDescription() + ")...",
                 Location = new Point(0, 126),
-                Width = 500
+                Width = 380
             };
             _changeHotkeyButton.Click += (s, e) =>
             {
@@ -668,9 +676,9 @@ namespace ArcticJoiner
             _changeDeleteKeyButton = new Button
             {
                 Text = "Change key (" + DeleteDescription() + ")...",
-                Location = new Point(508, 126),
-                Size = new Size(80, 26),
-                Anchor = AnchorStyles.Top | AnchorStyles.Right
+                Location = new Point(388, 126),
+                Size = new Size(200, 26),
+                Anchor = AnchorStyles.Top | AnchorStyles.Left
             };
             _changeDeleteKeyButton.Click += (s, e) =>
             {
@@ -693,6 +701,7 @@ namespace ArcticJoiner
             _settingsPanel.Controls.Add(revertFlagsButton);
             _settingsPanel.Controls.Add(_rejoinCheck);
             _settingsPanel.Controls.Add(_clearHistoryButton);
+            _settingsPanel.Controls.Add(historyButton);
             _settingsPanel.Controls.Add(forceQuitButton);
             _settingsPanel.Controls.Add(_extractLabel);
             _settingsPanel.Controls.Add(_changeDeleteKeyButton);
@@ -1928,11 +1937,35 @@ namespace ArcticJoiner
             return entry;
         }
 
+        // The recent joins are no longer listed in the paste-box dropdown (it has
+        // its own History button in the settings panel now) - this just keeps the
+        // Prev Server button in sync.
         private void RenderHistoryItems()
         {
-            _linkBox.Items.Clear();
-            foreach (string item in _history) _linkBox.Items.Add(HistoryDisplay(item));
             UpdatePrevButton();
+        }
+
+        // Shows recent joins as a small menu, opened from the History button.
+        private void ShowHistoryMenu(Control anchor)
+        {
+            var menu = new ContextMenuStrip();
+            if (_history.Count == 0)
+            {
+                var none = new ToolStripMenuItem("No recent servers yet");
+                none.Enabled = false;
+                menu.Items.Add(none);
+            }
+            else
+            {
+                foreach (string entry in _history)
+                {
+                    string copy = entry;
+                    menu.Items.Add(HistoryDisplay(copy), null, (s, e) => TryJoin(copy, closeAfter: false));
+                }
+                menu.Items.Add(new ToolStripSeparator());
+                menu.Items.Add("Clear history", null, (s, e) => ClearHistory());
+            }
+            menu.Show(anchor, new Point(0, anchor.Height));
         }
 
         // ---- History helpers ----
@@ -3039,7 +3072,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "2.10.2";
+        public const string Version = "2.10.3";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.

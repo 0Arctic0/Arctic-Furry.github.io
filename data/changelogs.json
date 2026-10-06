@@ -1,6 +1,14 @@
 [
   {
     "date": "2026-10-03",
+    "title": "Windows app v2.10.3: key labels fit + History button",
+    "items": [
+      "The Change key button was only 80px wide, so its label was clipped to just \"Change key\" and never showed the key. It is wider now and reads Change key (Ctrl+Delete)..., matching Change hotkey (Ctrl+Insert)....",
+      "History moved out of the paste-box dropdown arrow into its own History button in Settings - click it for your recent joins (click one to rejoin), with Clear history at the bottom."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "title": "Windows app v2.10.2: recent joins no longer listed in the tray",
     "items": [
       "The tray menu no longer lists recent joins (the raw links cluttered it) and the Remove a recent server submenu is gone with it. History still powers Prev Server and the paste-box dropdown, and Clear history stays in the tray as a one-click wipe."

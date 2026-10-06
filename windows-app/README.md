@@ -90,9 +90,9 @@ build through `ArcticJoiner.csproj`.
 - **Prev Server** shows what it will rejoin - the button shows the game name
   and hovering gives the game and server ID. The tray menu has **Clear history**
   to wipe the recent-join list.
-- **History:** the Clear history button (in Settings, and in the tray menu)
-  wipes the recent-join list. Recent joins feed the Prev Server button and the
-  paste-box dropdown; they are not listed in the tray.
+- **History:** the History button in Settings opens your recent joins (click one
+  to rejoin), and Clear history (Settings or tray) wipes them. History also
+  feeds the Prev Server button; it is not listed in the tray or the paste box.
 - **Auto-rejoin:** optionally rejoin your last server automatically if Roblox
   closes or crashes.
 - **Force quit Roblox:** close Roblox from the joiner - a button in Settings or
