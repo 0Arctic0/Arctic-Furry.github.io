@@ -5,24 +5,24 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="icon" type="image/svg+xml" href="../favicon.svg" />
   <link rel="alternate icon" href="../windows-app/icon.ico" />
-  <meta name="description" content="Browse every public server of any Roblox game with live player counts, and join the exact one you want." />
+  <meta name="description" content="See every public server of a Roblox game with live player counts - browse and join one, hop to a fresh server, or watch for an open slot." />
   <link rel="canonical" href="https://arctic0dev.github.io/servers/" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Arctic Joiner" />
-  <meta property="og:title" content="Server Browser - Arctic Joiner" />
-  <meta property="og:description" content="Browse every public server of any Roblox game with live player counts, and join the exact one you want." />
+  <meta property="og:title" content="Servers - Arctic Joiner" />
+  <meta property="og:description" content="Browse a game's servers, hop to a fresh one, or watch for an open slot." />
   <meta property="og:url" content="https://arctic0dev.github.io/servers/" />
   <meta property="og:image" content="https://arctic0dev.github.io/favicon.svg" />
   <meta name="twitter:card" content="summary" />
   <meta name="theme-color" content="#0f1117" />
-  <title>Server Browser</title>
+  <title>Servers</title>
   <link rel="stylesheet" href="../styles.css" />
 </head>
 <body data-page="servers">
   <main class="page">
     <section class="card card-wide">
-      <h1>Server Browser</h1>
-      <p>Paste a <strong>Roblox game link</strong> to see every public server with its player count, and join the one you want directly.</p>
+      <h1>Servers</h1>
+      <p>Paste a <strong>Roblox game link</strong> to see every public server with live player counts. Then <strong>browse</strong> and join one, <strong>hop</strong> to a fresh server, or <strong>watch</strong> until a slot opens.</p>
 
       <div class="field">
         <label for="server-game">Roblox game link or place ID</label>
@@ -32,20 +32,50 @@
       <div class="stack" id="recent-games" style="margin-bottom: 8px;"></div>
 
       <div class="buttons">
-        <button class="button" id="server-load">Browse Servers</button>
-        <button class="button secondary" id="server-refresh">Refresh</button>
-        <button class="button secondary" id="server-least">Join Least Full</button>
-        <button class="button secondary" id="server-copy-all">Copy All Links</button>
-        <a class="button secondary" href="../hop/">Server Hop</a>
-        <a class="button secondary" href="../watch/">Server Watch</a>
+        <button class="button" id="server-load">Load</button>
+        <button class="button secondary" id="server-refresh" disabled>Refresh</button>
         <a class="button secondary" href="../">Home</a>
         <a class="button secondary" href="../menu/">Open Menu</a>
       </div>
 
-      <label style="display: flex; align-items: center; gap: 8px; margin: 6px 0 2px;">
-        <input type="checkbox" id="server-autorefresh" checked />
-        <span class="small">Auto-refresh every 30 seconds while a game is loaded</span>
-      </label>
+      <div class="buttons" data-modes>
+        <button class="button" data-mode="browse">Browse</button>
+        <button class="button secondary" data-mode="hop">Hop</button>
+        <button class="button secondary" data-mode="watch">Watch</button>
+      </div>
+
+      <div id="panel-browse">
+        <div class="buttons" style="margin-top: 0;">
+          <button class="button" id="server-least" disabled>Join Emptiest</button>
+          <button class="button secondary" id="server-copy-all" disabled>Copy All Links</button>
+        </div>
+        <label style="display: flex; align-items: center; gap: 8px; margin: 6px 0 2px;">
+          <input type="checkbox" id="server-autorefresh" />
+          <span class="small">Auto-refresh every 30 seconds</span>
+        </label>
+      </div>
+
+      <div id="panel-hop" class="hidden">
+        <div class="buttons" style="margin-top: 0;">
+          <button class="button" id="hop-next" disabled>Hop to a New Server</button>
+          <button class="button secondary" id="hop-least" disabled>Emptiest Server</button>
+        </div>
+        <label style="display: flex; align-items: center; gap: 8px; margin: 6px 0 2px;">
+          <input type="checkbox" id="hop-keep" />
+          <span class="small">Keep hopping every 30 seconds</span>
+        </label>
+      </div>
+
+      <div id="panel-watch" class="hidden">
+        <div class="buttons" style="margin-top: 0;">
+          <button class="button" id="watch-start" disabled>Watch for an Open Slot</button>
+          <button class="button secondary" id="watch-stop" disabled>Stop Watching</button>
+        </div>
+        <label style="display: flex; align-items: center; gap: 8px; margin: 6px 0 2px;">
+          <input type="checkbox" id="watch-autojoin" />
+          <span class="small">Auto-join the emptiest server the moment a slot opens</span>
+        </label>
+      </div>
 
       <div class="stack" id="server-game-info" style="margin-top: 12px;"></div>
       <p class="small status" id="server-status">Waiting for a game link...</p>
@@ -57,58 +87,28 @@
     var gameBox = document.getElementById('server-game');
     var loadBtn = document.getElementById('server-load');
     var refreshBtn = document.getElementById('server-refresh');
-    var statusEl = document.getElementById('server-status');
-    var listEl = document.getElementById('server-list');
-    var infoEl = document.getElementById('server-game-info');
-    var currentPlaceId = null;
-    var autoTimer = null;
-    var currentGameName = null;
-    var allServers = [];
     var leastBtn = document.getElementById('server-least');
     var copyAllBtn = document.getElementById('server-copy-all');
     var autoRefreshBox = document.getElementById('server-autorefresh');
+    var hopNextBtn = document.getElementById('hop-next');
+    var hopLeastBtn = document.getElementById('hop-least');
+    var hopKeepBox = document.getElementById('hop-keep');
+    var watchStartBtn = document.getElementById('watch-start');
+    var watchStopBtn = document.getElementById('watch-stop');
+    var watchAutoBox = document.getElementById('watch-autojoin');
+    var statusEl = document.getElementById('server-status');
+    var listEl = document.getElementById('server-list');
+    var infoEl = document.getElementById('server-game-info');
+    var modeButtons = Array.prototype.slice.call(document.querySelectorAll('[data-mode]'));
 
     var RECENT_KEY = 'joiner.recentGames';
-
-    function loadRecentGames() {
-      try { return JSON.parse(localStorage.getItem(RECENT_KEY) || '[]'); } catch (e) { return []; }
-    }
-
-    function saveRecentGames(list) {
-      try { localStorage.setItem(RECENT_KEY, JSON.stringify(list)); } catch (e) {}
-    }
-
-    function rememberGame(placeId, name) {
-      var list = loadRecentGames().filter(function (g) { return g.id !== placeId; });
-      list.unshift({ id: placeId, name: name });
-      if (list.length > 5) list = list.slice(0, 5);
-      saveRecentGames(list);
-      renderRecentGames();
-    }
-
-    function renderRecentGames() {
-      var box = document.getElementById('recent-games');
-      if (!box) return;
-      var list = loadRecentGames();
-      box.textContent = '';
-      if (!list.length) return;
-      list.forEach(function (g) {
-        var btn = document.createElement('button');
-        btn.className = 'button secondary';
-        btn.style.margin = '0 6px 6px 0';
-        btn.style.display = 'inline-block';
-        btn.setAttribute('data-recent-game', String(g.id));
-        btn.textContent = g.name || ('Place ' + g.id);
-        box.appendChild(btn);
-      });
-    }
-
-    document.getElementById('recent-games').addEventListener('click', function (e) {
-      var btn = e.target && e.target.closest ? e.target.closest('[data-recent-game]') : null;
-      if (!btn) return;
-      gameBox.value = btn.getAttribute('data-recent-game');
-      loadGame();
-    });
+    var currentPlaceId = null;
+    var currentGameName = null;
+    var allServers = [];
+    var lastServerId = null;
+    var mode = 'browse';
+    var watching = false;
+    var timer = null;
 
     function setStatus(text, error) {
       statusEl.textContent = text;
@@ -130,10 +130,6 @@
       return null;
     }
 
-    function getJson(url) {
-      return fetch(url).then(function (r) { return r.json(); });
-    }
-
     // Tries the main mirror first, then an alternate in case of Cloudflare blocks.
     function mirrorAlternatives(url) {
       return [url, 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url.replace('.roproxy.com', '.roblox.com'))];
@@ -146,7 +142,7 @@
           return Promise.reject(new Error('All API routes are temporarily unavailable. Wait a moment and try again.'));
         }
         var target = urls[i % urls.length];
-        var wait = i >= urls.length ? 800 : 0; // second pass retries after a short delay
+        var wait = i >= urls.length ? 800 : 0;
         return new Promise(function (resolve) { setTimeout(resolve, wait); }).then(function () {
           var opts = body !== undefined ? {
             method: 'POST',
@@ -164,6 +160,68 @@
 
     function getApi(url) { return firstOk(mirrorAlternatives(url)); }
 
+    // ---- recent games ----
+    function loadRecentGames() {
+      try { return JSON.parse(localStorage.getItem(RECENT_KEY) || '[]'); } catch (e) { return []; }
+    }
+    function saveRecentGames(list) {
+      try { localStorage.setItem(RECENT_KEY, JSON.stringify(list)); } catch (e) {}
+    }
+    function rememberGame(placeId, name) {
+      var list = loadRecentGames().filter(function (g) { return g.id !== placeId; });
+      list.unshift({ id: placeId, name: name });
+      if (list.length > 5) list = list.slice(0, 5);
+      saveRecentGames(list);
+      renderRecentGames();
+    }
+    function renderRecentGames() {
+      var box = document.getElementById('recent-games');
+      if (!box) return;
+      var list = loadRecentGames();
+      box.textContent = '';
+      if (!list.length) return;
+      list.forEach(function (g) {
+        var btn = document.createElement('button');
+        btn.className = 'button secondary';
+        btn.style.margin = '0 6px 6px 0';
+        btn.style.display = 'inline-block';
+        btn.setAttribute('data-recent-game', String(g.id));
+        btn.textContent = g.name || ('Place ' + g.id);
+        box.appendChild(btn);
+      });
+    }
+    document.getElementById('recent-games').addEventListener('click', function (e) {
+      var btn = e.target && e.target.closest ? e.target.closest('[data-recent-game]') : null;
+      if (!btn) return;
+      gameBox.value = btn.getAttribute('data-recent-game');
+      loadGame();
+    });
+
+    // ---- mode switching (Browse / Hop / Watch) ----
+    function setMode(next) {
+      mode = next;
+      modeButtons.forEach(function (b) {
+        var on = b.getAttribute('data-mode') === next;
+        b.className = on ? 'button' : 'button secondary';
+      });
+      document.getElementById('panel-browse').classList.toggle('hidden', next !== 'browse');
+      document.getElementById('panel-hop').classList.toggle('hidden', next !== 'hop');
+      document.getElementById('panel-watch').classList.toggle('hidden', next !== 'watch');
+    }
+    modeButtons.forEach(function (b) {
+      b.addEventListener('click', function () {
+        setMode(b.getAttribute('data-mode'));
+        if (mode === 'watch') startWatch();
+        else stopWatch();
+        setStatus(mode === 'browse'
+          ? 'Browse: pick any server from the list below.'
+          : mode === 'hop'
+            ? 'Hop: jump into a different server of this game.'
+            : 'Watch: checks for an open slot every 30 seconds.');
+      });
+    });
+
+    // ---- loading ----
     function loadGame() {
       var placeId = parseGameLink(gameBox.value);
       if (!placeId) {
@@ -173,18 +231,14 @@
       currentPlaceId = placeId;
       loadBtn.disabled = true;
       setStatus('Loading game info...');
-      // multiget-place-details now needs auth, so resolve place -> universe -> game info.
       getApi('https://apis.roproxy.com/universes/v1/places/' + placeId + '/universe')
-        .then(function (r) { return r.json(); })
         .then(function (u) {
           if (!u || !u.universeId) throw new Error('Could not resolve that place.');
           return getApi('https://games.roproxy.com/v1/games?universeIds=' + u.universeId);
         })
         .then(function (root) {
           var games = root.data || [];
-          if (!games.length) {
-            throw new Error('Could not load that game.');
-          }
+          if (!games.length) throw new Error('Could not load that game.');
           var g = games[0];
           currentGameName = g.name;
           infoEl.innerHTML =
@@ -212,7 +266,7 @@
           '/servers/Public?limit=100' + (cursor ? '&cursor=' + encodeURIComponent(cursor) : '');
         return getApi(url).then(function (root) {
           (root.data || []).forEach(function (s) { all.push(s); });
-          if (root.nextPageCursor) {
+          if (root.nextPageCursor && all.length < 600) {
             cursor = root.nextPageCursor;
             return page();
           }
@@ -223,10 +277,20 @@
       page().catch(function (err) { setStatus('Failed: ' + err.message, true); });
     }
 
+    function withRoom() {
+      return allServers.filter(function (s) { return (s.playing || 0) < (s.maxPlayers || 0); });
+    }
+
     function render(servers) {
       servers.sort(function (a, b) { return (b.playing || 0) - (a.playing || 0); });
       allServers = servers;
       listEl.textContent = '';
+      var open = withRoom().length;
+      var canAct = servers.length > 0;
+      [leastBtn, copyAllBtn, hopNextBtn, hopLeastBtn, watchStartBtn].forEach(function (b) {
+        if (b) b.disabled = !canAct;
+      });
+      if (watchStopBtn) watchStopBtn.disabled = !watching;
       if (!servers.length) {
         setStatus('No public servers right now.', true);
         return;
@@ -246,11 +310,10 @@
           '</div></div>';
         listEl.appendChild(row);
       });
-      setStatus('Showing ' + servers.length + ' public servers. Sorted by most players. Auto-refreshes every 30 seconds.');
+      setStatus('Showing ' + servers.length + ' public servers - ' + open + ' with open slots.');
     }
 
     function buildInviteLink(placeId, serverId) {
-      // absolute path works no matter where the site is hosted
       return new URL('../invite/?placeId=' + placeId + '&gameInstanceId=' + serverId, window.location.href).toString();
     }
 
@@ -270,6 +333,31 @@
       }
     }
 
+    function joinServer(id) {
+      if (!currentPlaceId || !id) return;
+      lastServerId = id;
+      window.location.href = 'roblox://placeId=' + currentPlaceId + '&gameInstanceId=' + id;
+    }
+
+    function hop() {
+      var pool = withRoom();
+      if (!pool.length) { setStatus('Every server is full right now.', true); return; }
+      var candidates = pool.filter(function (s) { return String(s.id) !== String(lastServerId); });
+      if (!candidates.length) candidates = pool;
+      candidates.sort(function (a, b) { return (a.playing || 0) - (b.playing || 0); });
+      var pick = candidates[Math.floor(Math.random() * Math.min(3, candidates.length))] || candidates[0];
+      setStatus('Hopping to ' + pick.playing + ' / ' + pick.maxPlayers + ' players (server ' + pick.id + ')...');
+      joinServer(pick.id);
+    }
+
+    function joinEmptiest() {
+      var pool = withRoom();
+      if (!pool.length) { setStatus('Every server is full right now.', true); return; }
+      pool.sort(function (a, b) { return (a.playing || 0) - (b.playing || 0); });
+      setStatus('Joining the emptiest server: ' + pool[0].playing + ' / ' + pool[0].maxPlayers + ' players.');
+      joinServer(pool[0].id);
+    }
+
     listEl.addEventListener('click', function (e) {
       var arcticBtn = e.target && e.target.closest ? e.target.closest('[data-arctic-server]') : null;
       if (arcticBtn && currentPlaceId) {
@@ -283,50 +371,67 @@
       }
       var btn = e.target && e.target.closest ? e.target.closest('[data-server-id]') : null;
       if (!btn || !currentPlaceId) return;
-      window.location.href = 'roblox://placeId=' + currentPlaceId + '&gameInstanceId=' + btn.getAttribute('data-server-id');
+      joinServer(btn.getAttribute('data-server-id'));
     });
+
+    // ---- watch ----
+    function startWatch() {
+      if (!currentPlaceId) return;
+      watching = true;
+      if (watchStopBtn) watchStopBtn.disabled = false;
+      if (watchStartBtn) watchStartBtn.disabled = true;
+      setStatus('Watching - checking for an open slot every 30 seconds.');
+      loadServers();
+    }
+
+    function stopWatch() {
+      watching = false;
+      if (watchStopBtn) watchStopBtn.disabled = true;
+      if (watchStartBtn) watchStartBtn.disabled = allServers.length === 0;
+    }
+
+    // One 30s tick drives whichever mode is active.
+    timer = setInterval(function () {
+      if (!currentPlaceId) return;
+      if (mode === 'browse' && autoRefreshBox && autoRefreshBox.checked) loadServers();
+      else if (mode === 'hop' && hopKeepBox && hopKeepBox.checked) { loadServers(); hop(); }
+      else if (mode === 'watch' && watching) {
+        loadServers();
+        var pool = withRoom();
+        if (pool.length) {
+          if (watchAutoBox && watchAutoBox.checked) {
+            pool.sort(function (a, b) { return (a.playing || 0) - (b.playing || 0); });
+            setStatus('Slot open - joining the emptiest server (' + pool[0].playing + ' / ' + pool[0].maxPlayers + ').');
+            joinServer(pool[0].id);
+          } else {
+            setStatus('Slot open - ' + pool.length + ' server(s) have room. Click Join on one.');
+          }
+        } else {
+          setStatus('All servers are full. Still watching...');
+        }
+      }
+    }, 30000);
 
     loadBtn.addEventListener('click', loadGame);
     refreshBtn.addEventListener('click', function () { if (currentPlaceId) loadServers(); });
-
-    leastBtn.addEventListener('click', function () {
-      if (!currentPlaceId || !allServers.length) {
-        setStatus('Load a game first to pick its least-full server.', true);
-        return;
-      }
-      var best = null;
-      allServers.forEach(function (s) {
-        if ((s.playing || 0) >= (s.maxPlayers || 0)) return; // skip full servers
-        if (!best || (s.playing || 0) < (best.playing || 0)) best = s;
-      });
-      if (!best) { setStatus('Every server is full right now.', true); return; }
-      setStatus('Joining the emptiest server: ' + best.playing + ' / ' + best.maxPlayers + ' players.');
-      window.location.href = 'roblox://placeId=' + currentPlaceId + '&gameInstanceId=' + best.id;
-    });
-
+    leastBtn.addEventListener('click', joinEmptiest);
+    hopLeastBtn.addEventListener('click', joinEmptiest);
+    hopNextBtn.addEventListener('click', hop);
     copyAllBtn.addEventListener('click', function () {
-      if (!currentPlaceId || !allServers.length) {
-        setStatus('Load a game first to copy its server links.', true);
-        return;
-      }
-      var lines = allServers.map(function (s) {
-        return buildInviteLink(currentPlaceId, s.id);
-      });
+      if (!currentPlaceId || !allServers.length) { setStatus('Load a game first.', true); return; }
+      var lines = allServers.map(function (s) { return buildInviteLink(currentPlaceId, s.id); });
       copyText(lines.join('\n'), 'Copied ' + lines.length + ' join links - one per server.');
     });
-    gameBox.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter') loadGame();
-    });
+    watchStartBtn.addEventListener('click', startWatch);
+    watchStopBtn.addEventListener('click', function () { stopWatch(); setStatus('Stopped watching.'); });
+    gameBox.addEventListener('keydown', function (e) { if (e.key === 'Enter') loadGame(); });
 
-    // Auto-refresh the server list every 30 seconds while a game is loaded.
-    autoTimer = setInterval(function () {
-      if (!currentPlaceId || loadBtn.disabled) return;
-      if (autoRefreshBox && !autoRefreshBox.checked) return;
-      loadServers();
-    }, 30000);
-
+    // open straight into a mode via ?mode=hop / ?mode=watch (old /hop and /watch links)
+    var wanted = new URLSearchParams(window.location.search).get('mode');
+    setMode(wanted === 'hop' || wanted === 'watch' ? wanted : 'browse');
     renderRecentGames();
   })();
+
   </script>
 </body>
 </html>

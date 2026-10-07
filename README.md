@@ -26,9 +26,7 @@ Static GitHub Pages join helper for Roblox public servers and private server lin
 - `/ps` - private servers and community submissions
 - `/changelogs` - website update history
 - `/snipe` - user sniper: find and join a specific user's public server (keeps a saved watch target)
-- `/servers` - server browser: see every public server of a game, join one directly, join the least-full server, or copy all links
-- `/hop` - server hop: jump into a different public server, pick the emptiest, or keep hopping
-- `/watch` - server watch: watch a game for open slots and auto-join the moment one frees up
+- `/servers` - servers (Browse / Hop / Watch): see every public server with live player counts, join one or copy its link, hop to a fresh server, or watch for an open slot
 
 Examples:
 
