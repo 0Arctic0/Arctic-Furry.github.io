@@ -336,7 +336,7 @@
     function joinServer(id) {
       if (!currentPlaceId || !id) return;
       lastServerId = id;
-      window.location.href = 'roblox://placeId=' + currentPlaceId + '&gameInstanceId=' + id;
+      window.location.href = 'roblox://experiences/start?placeId=' + currentPlaceId + '&gameInstanceId=' + id;
     }
 
     function hop() {

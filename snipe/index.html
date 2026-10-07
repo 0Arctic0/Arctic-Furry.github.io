@@ -272,7 +272,7 @@
           }
           stopWatch();
           clearSavedWatch();
-          currentDeepLink = 'roblox://placeId=' + found.placeId + '&gameInstanceId=' + found.serverId;
+          currentDeepLink = 'roblox://experiences/start?placeId=' + found.placeId + '&gameInstanceId=' + found.serverId;
           setResult('Found ' + user.name + '! Server: ' + found.serverId);
           joinRow.classList.remove('hidden');
         })

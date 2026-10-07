@@ -2281,7 +2281,7 @@ namespace ArcticJoiner
         {
             if (_onJoin != null && _placeId != null)
             {
-                _onJoin("roblox://placeId=" + _placeId + "&gameInstanceId=" + serverId);
+                _onJoin("roblox://experiences/start?placeId=" + _placeId + "&gameInstanceId=" + serverId);
             }
         }
 
@@ -2994,18 +2994,18 @@ namespace ArcticJoiner
             if (privateCode != null)
             {
                 // A game link with privateServerLinkCode knows its game, so the
-                // deep link must carry BOTH: roblox://placeId=<id>&linkCode=<code>.
+                // deep link must carry BOTH: experiences/start?placeId=<id>&linkCode=<code>.
                 // (The navigation/share_links form is only for bare /share?code=
                 // links - it drops the game and fails for privateServerLinkCode.)
                 if (placeId != null)
                 {
-                    return "roblox://placeId=" + placeId + "&linkCode=" + Uri.EscapeDataString(privateCode);
+                    return "roblox://experiences/start?placeId=" + placeId + "&linkCode=" + Uri.EscapeDataString(privateCode);
                 }
                 return "roblox://navigation/share_links?code=" + Uri.EscapeDataString(privateCode) + "&type=Server";
             }
             if (placeId != null)
             {
-                var sb = new StringBuilder("roblox://placeId=").Append(placeId);
+                var sb = new StringBuilder("roblox://experiences/start?placeId=").Append(placeId);
                 if (instanceId != null) sb.Append("&gameInstanceId=").Append(Uri.EscapeDataString(instanceId));
                 if (launchData != null) sb.Append("&launchData=").Append(Uri.EscapeDataString(launchData));
                 return sb.ToString();
@@ -3073,7 +3073,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "2.10.4";
+        public const string Version = "2.10.5";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.

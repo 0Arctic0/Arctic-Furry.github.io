@@ -1,6 +1,13 @@
 [
   {
     "date": "2026-10-03",
+    "title": "Correct join links everywhere (app v2.10.5 + site)",
+    "items": [
+      "Every join link now uses the current Roblox scheme roblox://experiences/start?placeId=... instead of the legacy roblox://placeId=... - this is what Roblox itself and Bloxstrap/Froststrap use. games/start links with launchData (like roblox.com/games/start?placeId=...&launchData=...) now join straight into the right server instead of dropping you in a random one first, and the same fix applies to server picks, the sniper, private server links and the Windows app."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "title": "Server pages merged + cleaner home page",
     "items": [
       "Server Browser, Server Hop and Server Watch are now one page: /servers has Browse / Hop / Watch modes (pick a server and join or copy its link, hop to a fresh server, or watch for an open slot). The old /hop and /watch links redirect there.",

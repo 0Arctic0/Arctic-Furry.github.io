@@ -89,15 +89,15 @@
   }
 
   function buildDeepLink(placeId, instanceId) {
-    return 'roblox://placeId=' + encodeURIComponent(placeId) + '&gameInstanceId=' + encodeURIComponent(instanceId);
+    return 'roblox://experiences/start?placeId=' + encodeURIComponent(placeId) + '&gameInstanceId=' + encodeURIComponent(instanceId);
   }
 
   function buildPlaceLink(placeId) {
-    return 'roblox://placeId=' + encodeURIComponent(placeId);
+    return 'roblox://experiences/start?placeId=' + encodeURIComponent(placeId);
   }
 
   function buildLaunchDataLink(placeId, launchData, instanceId) {
-    let link = 'roblox://placeId=' + encodeURIComponent(placeId);
+    let link = 'roblox://experiences/start?placeId=' + encodeURIComponent(placeId);
     if (instanceId) {
       link += '&gameInstanceId=' + encodeURIComponent(instanceId);
     }
@@ -121,7 +121,7 @@
   function buildPrivateLink(placeId, privateCode) {
     if (!privateCode) return '';
     return placeId
-      ? 'roblox://placeId=' + encodeURIComponent(placeId) + '&linkCode=' + encodeURIComponent(privateCode)
+      ? 'roblox://experiences/start?placeId=' + encodeURIComponent(placeId) + '&linkCode=' + encodeURIComponent(privateCode)
       : 'roblox://navigation/share_links?code=' + encodeURIComponent(privateCode) + '&type=Server';
   }
 
@@ -528,7 +528,7 @@
       if (mode === 'private') {
         if (!privateCode) return '';
         // Keep the place id when we know it: a game link with
-        // privateServerLinkCode joins via roblox://placeId=<id>&linkCode=<code>,
+        // privateServerLinkCode joins via roblox://experiences/start?placeId=<id>&linkCode=<code>,
         // not via the share-links navigation.
         const privatePlace = placeId || lastPublicPlaceId;
         if (privatePlace) url.searchParams.set('placeId', privatePlace);
@@ -616,7 +616,7 @@
           (privateInput && privateInput.value) || (privateGameLinkInput && privateGameLinkInput.value)
         );
         const privatePlace = normalizePlaceId(placeInput && placeInput.value) || lastPublicPlaceId;
-        // With a place id the private link is roblox://placeId=<id>&linkCode=<code>;
+        // With a place id the private link is roblox://experiences/start?placeId=<id>&linkCode=<code>;
         // without one it falls back to the share-links navigation.
         return privatePlace ? buildPrivateLink(privatePlace, privateCode) : buildShareLinkDeepLink(privateCode);
       }
