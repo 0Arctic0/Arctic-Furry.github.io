@@ -1,6 +1,15 @@
 [
   {
     "date": "2026-10-03",
+    "title": "Discord verification fixed, favourites tidied, live stats accurate",
+    "items": [
+      "Discord verification on the private servers page now shows what actually went wrong: Discord returns failures in the URL query string, which the page never read, so a failure looked like nothing happened. It now reports Discord's own error (and the redirect URI it expects), and the saved verification expires with the token instead of lingering.",
+      "Favourites look better: the card button is a compact star (tooltip says add/remove) placed first on the row so the three buttons no longer wrap, and the toolbar checkbox lines up with the other fields.",
+      "Windows app v2.10.6 - live stats are accurate now: in-game state comes from the logs own markers (Joining game / Replicator created vs Time to disconnect / leaveUGCGameInternal), the same signals Bloxstrap uses, so it stops claiming you are in a game after you leave. The server line also says private/reserved server when that is why no player count is available, instead of the vague not listed."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "title": "Correct join links everywhere (app v2.10.5 + site)",
     "items": [
       "Every join link now uses the current Roblox scheme roblox://experiences/start?placeId=... instead of the legacy roblox://placeId=... - this is what Roblox itself and Bloxstrap/Froststrap use. games/start links with launchData (like roblox.com/games/start?placeId=...&launchData=...) now join straight into the right server instead of dropping you in a random one first, and the same fix applies to server picks, the sniper, private server links and the Windows app."

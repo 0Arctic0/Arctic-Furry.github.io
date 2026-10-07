@@ -2348,6 +2348,42 @@ namespace ArcticJoiner
             return best;
         }
 
+        // Bloxstrap's own activity markers (verified against
+        // bloxstraplabs/bloxstrap Bloxstrap/Integrations/ActivityWatcher.cs).
+        // These are the accurate "in a game" signals - far better than guessing
+        // from log activity, and they cover disconnects and leaving to the menu.
+        private const string JoinMarker = "! Joining game";
+        private const string ReplicatorMarker = "Replicator created:";
+        private const string DisconnectMarker = "Time to disconnect replication data:";
+        private const string LeaveMarker = "leaveUGCGameInternal";
+
+        internal enum GameState { Unknown, InGame, NotInGame }
+
+        // Compares the last join marker with the last leave/disconnect marker.
+        internal static GameState LastGameState(string logText)
+        {
+            if (string.IsNullOrEmpty(logText)) return GameState.Unknown;
+            int lastIn = Math.Max(LastIndexOf(logText, JoinMarker), LastIndexOf(logText, ReplicatorMarker));
+            int lastOut = Math.Max(LastIndexOf(logText, DisconnectMarker), LastIndexOf(logText, LeaveMarker));
+            if (lastIn < 0 && lastOut < 0) return GameState.Unknown;
+            return lastIn > lastOut ? GameState.InGame : GameState.NotInGame;
+        }
+
+        private static int LastIndexOf(string text, string needle)
+        {
+            return text.LastIndexOf(needle, StringComparison.OrdinalIgnoreCase);
+        }
+
+        // A private or reserved server never appears in the public server list -
+        // knowing that turns a confusing "not listed" into a real answer.
+        internal static bool LooksPrivateOrReserved(string logText)
+        {
+            if (string.IsNullOrEmpty(logText)) return false;
+            int join = LastIndexOf(logText, JoinMarker);
+            string tail = join >= 0 ? logText.Substring(join) : logText;
+            return tail.IndexOf("accessCode", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
         // The game log only updates while you are actually playing - the moment
         // you leave, it goes silent even though the player process can stay
         // alive at the app's main page. This is the reliable "still in game?"
@@ -2457,6 +2493,7 @@ namespace ArcticJoiner
             if (joins.Count > 0)
             {
                 string line = joins[joins.Count - 1].Value;
+                // Bloxstrap's exact pattern: ! Joining game '<jobId>' place <placeId> at <ip>
                 var g = System.Text.RegularExpressions.Regex.Match(line, guid);
                 if (g.Success) serverId = g.Groups[1].Value;
                 var p = System.Text.RegularExpressions.Regex.Match(line, @"(?i)place[^0-9]{0,5}([0-9]{6,})");
@@ -2689,7 +2726,16 @@ namespace ArcticJoiner
                 // already left.
                 string dbg;
                 string newestLog = RobloxLogs.NewestLogFile(out dbg);
-                bool inGame = JoinerForm.IsRobloxRunning() && RobloxLogs.IsLogActive(newestLog, 12);
+                string error;
+                string logText = newestLog != null ? RobloxLogs.ReadTextShared(newestLog, out error) : null;
+                bool running = JoinerForm.IsRobloxRunning();
+
+                // Bloxstrap's markers are the accurate signal: a join/replicator
+                // line means in game; a leave/disconnect line means not. Only fall
+                // back to "is the log still being written" when a log has neither.
+                RobloxLogs.GameState state = RobloxLogs.LastGameState(logText);
+                bool inGame = running && (state == RobloxLogs.GameState.InGame
+                    || (state == RobloxLogs.GameState.Unknown && RobloxLogs.IsLogActive(newestLog, 12)));
                 if (!inGame)
                 {
                     _main.LiveClear();
@@ -2716,8 +2762,8 @@ namespace ArcticJoiner
                 string place = _main.LivePlaceId();
                 string server = _main.LiveServerId();
 
-                // Missing either id? Read them straight out of the Roblox log.
-                if (place == null || server == null) FillFromLog();
+                // Missing either id? Take them from the log we just read.
+                if (place == null || server == null) ApplyLog(logText);
 
                 string name = place != null ? JoinerForm.FetchGameName(place) : null;
                 List<ServerInfo> servers = place != null ? JoinerForm.FetchServers(place, server) : new List<ServerInfo>();
@@ -2729,7 +2775,7 @@ namespace ArcticJoiner
                 {
                     string before = server;
                     string beforePlace = place;
-                    FillFromLog();
+                    ApplyLog(logText);
                     if (server != null && !string.Equals(server, before, StringComparison.OrdinalIgnoreCase))
                     {
                         if (!string.Equals(place, beforePlace, StringComparison.OrdinalIgnoreCase))
@@ -2762,6 +2808,7 @@ namespace ArcticJoiner
                         if (mine != null && mine.MaxPlayers > 0) _playersLabel.Text = mine.Playing + " / " + mine.MaxPlayers;
                         else if (mine != null) _playersLabel.Text = mine.Playing + " playing";
                         else if (server == null) _playersLabel.Text = servers.Count + " servers";
+                        else if (RobloxLogs.LooksPrivateOrReserved(logText)) _playersLabel.Text = "private/reserved server";
                         else _playersLabel.Text = "beyond Roblox's list";
                         _regionValue.Text = region != null ? region : (_serverIp != null ? "unknown" : "-");
                         _pingValue.Text = mine != null && mine.Ping > 0 ? mine.Ping + " ms (Roblox)" : "-";
@@ -2785,16 +2832,11 @@ namespace ArcticJoiner
             return null;
         }
 
-        // Reads the newest log once and remembers the place, server and address.
-        private void FillFromLog()
+        // Remembers the place, server and address from an already-read log.
+        private void ApplyLog(string content)
         {
             try
             {
-                string debug;
-                string file = RobloxLogs.NewestLogFile(out debug);
-                if (file == null) return;
-                string error;
-                string content = RobloxLogs.ReadTextShared(file, out error);
                 if (content == null) return;
                 string placeId, serverId;
                 RobloxLogs.TryFindCurrentServer(content, out placeId, out serverId);
@@ -3073,7 +3115,7 @@ namespace ArcticJoiner
     // Fetches updates from the GitHub Pages repo (main branch, windows-app folder).
     internal static class Updater
     {
-        public const string Version = "2.10.5";
+        public const string Version = "2.10.6";
 
         // A double-quote character, used when building compiler arguments
         // without needing escaped quotes in the source.

@@ -775,7 +775,10 @@
       document.querySelectorAll('[data-fav]').forEach(function (button) {
         const name = button.getAttribute('data-fav') || '';
         const on = isFavorite(name);
-        button.textContent = on ? '\u2605 Favorited' : '\u2606 Favorite';
+        // Just the star - a long label made the three buttons on the card wrap.
+        button.textContent = on ? '\u2605' : '\u2606';
+        button.title = on ? 'Remove from favorites' : 'Add to favorites';
+        button.setAttribute('aria-label', on ? 'Remove from favorites' : 'Add to favorites');
         button.setAttribute('aria-pressed', on ? 'true' : 'false');
         button.classList.toggle('fav-on', on);
       });
@@ -787,11 +790,12 @@
       if (!actions || !name || actions.querySelector('[data-fav]')) return;
       const favButton = document.createElement('button');
       favButton.type = 'button';
-      favButton.className = 'button secondary';
+      favButton.className = 'button secondary fav-btn';
       favButton.setAttribute('data-fav', name);
-      favButton.textContent = '\u2606 Favorite';
+      favButton.textContent = '\u2606';
+      favButton.title = 'Add to favorites';
       favButton.addEventListener('click', function () { toggleFavorite(name); });
-      actions.appendChild(favButton);
+      actions.insertBefore(favButton, actions.firstChild);
     });
     renderFavoriteButtons();
     document.querySelectorAll('[data-copy-static]').forEach(function (button) {
@@ -821,9 +825,13 @@
       return option ? option.text : value;
     }
 
-    function persistVerifiedUser(user) {
+    function persistVerifiedUser(user, expiresInSeconds) {
       try {
-        localStorage.setItem('ps.discordUser', JSON.stringify(user));
+        const ttl = Number(expiresInSeconds) > 0 ? Number(expiresInSeconds) : 604800;
+        localStorage.setItem('ps.discordUser', JSON.stringify({
+          user: user,
+          expiresAt: Date.now() + ttl * 1000
+        }));
       } catch (_) {}
     }
 
@@ -916,8 +924,15 @@
 
     function loadStoredVerifiedUser() {
       try {
-        const raw = localStorage.getItem('ps.discordUser');
-        return raw ? JSON.parse(raw) : null;
+        const parsed = JSON.parse(localStorage.getItem('ps.discordUser') || 'null');
+        if (!parsed) return null;
+        // Older saves were the user object itself, without an expiry.
+        const entry = parsed.user ? parsed : { user: parsed, expiresAt: 0 };
+        if (entry.expiresAt && Date.now() > entry.expiresAt) {
+          localStorage.removeItem('ps.discordUser');
+          return null;
+        }
+        return entry.user;
       } catch (_) {
         return null;
       }
@@ -1184,10 +1199,43 @@
       refreshReviewQueue();
     }
 
+    // Discord sends the result back in the URL - the token in the fragment, but
+    // errors in the query string. Reading both is why a failure used to look
+    // like nothing happened at all.
+    function readDiscordResult() {
+      const hash = new URLSearchParams((window.location.hash || '').replace(/^#/, ''));
+      const query = new URLSearchParams(window.location.search || '');
+      const pick = function (key) { return hash.get(key) || query.get(key) || ''; };
+      return {
+        accessToken: pick('access_token'),
+        error: pick('error'),
+        errorDescription: pick('error_description'),
+        expiresIn: pick('expires_in')
+      };
+    }
+
+    function stripAuthParams() {
+      try {
+        if (window.history && window.history.replaceState) {
+          window.history.replaceState({}, document.title, window.location.pathname);
+        } else {
+          window.location.hash = '';
+        }
+      } catch (_) {}
+    }
+
     async function resolveDiscordAuth() {
-      const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
-      const accessToken = hash.get('access_token');
-      if (!accessToken) {
+      const result = readDiscordResult();
+      if (result.error) {
+        clearVerifiedUser();
+        renderVerifiedUser();
+        setCommunityStatus('Discord verification failed: ' + result.error +
+          (result.errorDescription ? ' - ' + decodeURIComponent(result.errorDescription.replace(/\+/g, ' ')) : '') +
+          ' (the Discord app must allow the redirect URI ' + window.location.origin + window.location.pathname + ')', 'error');
+        stripAuthParams();
+        return;
+      }
+      if (!result.accessToken) {
         verifiedDiscordUser = loadStoredVerifiedUser();
         renderVerifiedUser();
         return;
@@ -1195,11 +1243,11 @@
       try {
         const response = await fetch('https://discord.com/api/users/@me', {
           headers: {
-            Authorization: 'Bearer ' + accessToken
+            Authorization: 'Bearer ' + result.accessToken
           }
         });
         if (!response.ok) {
-          throw new Error('Discord verification failed.');
+          throw new Error('Discord API said ' + response.status + (response.status === 401 ? ' (the token was rejected - try verifying again)' : ''));
         }
         const profile = await response.json();
         verifiedDiscordUser = {
@@ -1208,18 +1256,14 @@
           avatar: profile.avatar || '',
           discriminator: profile.discriminator || '0'
         };
-        persistVerifiedUser(verifiedDiscordUser);
-        if (window.history && window.history.replaceState) {
-          window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
-        } else {
-          window.location.hash = '';
-        }
+        persistVerifiedUser(verifiedDiscordUser, result.expiresIn);
+        stripAuthParams();
         renderVerifiedUser();
         setCommunityStatus('Discord verification complete. Your submission will show your username, Discord ID, and profile picture.', 'ok');
-      } catch (_) {
+      } catch (err) {
         clearVerifiedUser();
         renderVerifiedUser();
-        setCommunityStatus('Discord verification failed. Try verifying again.', 'error');
+        setCommunityStatus('Discord verification failed: ' + (err && err.message ? err.message : 'unknown error'), 'error');
       }
     }
 

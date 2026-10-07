@@ -154,11 +154,28 @@ button.button:disabled {
   transform: none;
 }
 
-/* A favorited card's button (private servers page). */
+/* Compact star button on private-server cards. */
+.button.fav-btn,
+button.button.fav-btn {
+  min-width: 46px;
+  padding: 14px 10px;
+  font-size: 18px;
+  line-height: 1;
+}
+
 .button.fav-on,
 button.button.fav-on {
   background: var(--accent-2);
   box-shadow: 0 0 0 2px rgba(124, 136, 255, .35);
+}
+
+/* Toolbar checkbox aligned with the other fields. */
+.fav-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  cursor: pointer;
 }
 
 .stack {
