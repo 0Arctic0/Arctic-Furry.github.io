@@ -3,10 +3,10 @@
     "date": "2026-10-03",
     "title": "Private Servers: the Favorites checkbox fits the toolbar",
     "items": [
-      "The Show only favorites checkbox in the /ps toolbar was being styled as a text field - stretched to full width with text-box padding - so it looked like a stray grey box and pushed its label across the row. It is a normal 18px checkbox now, aligned with the Search and Sort fields."
+      "The Show only favorites checkbox in the /ps toolbar was being styled as a text field - stretched to full width with text-box padding - so it looked like a stray grey box and pushed its label across the row. It is a normal 18px checkbox now, aligned with the Search and Sort fields.",
+      "The toolbar also fits all four controls (Search, Category, Sort, Favorites) on one row instead of dropping Favorites onto a line of its own, and its label is no longer bold or wrapped."
     ]
   },
-
   {
     "date": "2026-10-03",
     "title": "Windows app: arcticjoiner:// links always use the current join scheme",
@@ -14,7 +14,6 @@
       "The app's own arcticjoiner:// protocol handler used to turn every incoming link into the legacy roblox://placeId=... form. It now sends place-id links through roblox://experiences/start?placeId=... and passes anything with a path (experiences/start or navigation/share_links) straight through, so even an old bookmarked arcticjoiner:// link joins the right server."
     ]
   },
-
   {
     "date": "2026-10-03",
     "title": "Menu, sniper and servers bug fixes",
@@ -25,7 +24,6 @@
       "On the Servers page, Start Watching stays disabled while a watch is already running instead of re-enabling itself on every auto-refresh."
     ]
   },
-
   {
     "date": "2026-10-03",
     "title": "Servers page: Arctic Joiner button joins the right server",
@@ -33,7 +31,6 @@
       "The per-server Arctic Joiner button on the Servers page handed the desktop app a legacy arcticjoiner://placeId=... link, which the app rewrote into the old roblox://placeId=... deep link and could drop you into the wrong server. It now sends arcticjoiner://experiences/start?placeId=...&gameInstanceId=..., matching the invite page and the sniper, so the app joins the exact server you clicked."
     ]
   },
-
   {
     "date": "2026-10-03",
     "title": "Discord verification fixed, favourites tidied, live stats accurate",
