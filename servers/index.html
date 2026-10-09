@@ -291,6 +291,8 @@
         if (b) b.disabled = !canAct;
       });
       if (watchStopBtn) watchStopBtn.disabled = !watching;
+      // A refresh fires while watching; keep Start Watching disabled until it stops.
+      if (watching && watchStartBtn) watchStartBtn.disabled = true;
       if (!servers.length) {
         setStatus('No public servers right now.', true);
         return;
@@ -361,7 +363,7 @@
     listEl.addEventListener('click', function (e) {
       var arcticBtn = e.target && e.target.closest ? e.target.closest('[data-arctic-server]') : null;
       if (arcticBtn && currentPlaceId) {
-        window.location.href = 'arcticjoiner://placeId=' + currentPlaceId + '&gameInstanceId=' + arcticBtn.getAttribute('data-arctic-server');
+        window.location.href = 'arcticjoiner://experiences/start?placeId=' + currentPlaceId + '&gameInstanceId=' + arcticBtn.getAttribute('data-arctic-server');
         return;
       }
       var copyBtn = e.target && e.target.closest ? e.target.closest('[data-copy-server]') : null;

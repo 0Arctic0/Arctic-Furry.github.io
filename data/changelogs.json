@@ -1,6 +1,33 @@
 [
   {
     "date": "2026-10-03",
+    "title": "Windows app: arcticjoiner:// links always use the current join scheme",
+    "items": [
+      "The app's own arcticjoiner:// protocol handler used to turn every incoming link into the legacy roblox://placeId=... form. It now sends place-id links through roblox://experiences/start?placeId=... and passes anything with a path (experiences/start or navigation/share_links) straight through, so even an old bookmarked arcticjoiner:// link joins the right server."
+    ]
+  },
+
+  {
+    "date": "2026-10-03",
+    "title": "Menu, sniper and servers bug fixes",
+    "items": [
+      "The menu now understands arcticjoiner://experiences/start?placeId=... links: pasting one used to lose the place ID entirely, so nothing joined. Both the modern app links and the older arcticjoiner://placeId=... form parse correctly now.",
+      "The sniper no longer fails with a cryptic undefined error when a username does not exist - it says No Roblox user with that name was found.",
+      "Discord default avatars pick the right image for newer accounts (which have no discriminator) instead of always showing the first default.",
+      "On the Servers page, Start Watching stays disabled while a watch is already running instead of re-enabling itself on every auto-refresh."
+    ]
+  },
+
+  {
+    "date": "2026-10-03",
+    "title": "Servers page: Arctic Joiner button joins the right server",
+    "items": [
+      "The per-server Arctic Joiner button on the Servers page handed the desktop app a legacy arcticjoiner://placeId=... link, which the app rewrote into the old roblox://placeId=... deep link and could drop you into the wrong server. It now sends arcticjoiner://experiences/start?placeId=...&gameInstanceId=..., matching the invite page and the sniper, so the app joins the exact server you clicked."
+    ]
+  },
+
+  {
+    "date": "2026-10-03",
     "title": "Discord verification fixed, favourites tidied, live stats accurate",
     "items": [
       "Discord verification on the private servers page now shows what actually went wrong: Discord returns failures in the URL query string, which the page never read, so a failure looked like nothing happened. It now reports Discord's own error (and the redirect URI it expects), and the saved verification expires with the token instead of lingering.",

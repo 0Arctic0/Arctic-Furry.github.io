@@ -2969,10 +2969,18 @@ namespace ArcticJoiner
             // Already a deep link - pass straight through.
             if (text.StartsWith("roblox://", StringComparison.OrdinalIgnoreCase)) return text;
 
-            // Our own protocol from the website: arcticjoiner://placeId=... works the same.
+            // Our own protocol from the website. Modern links look like
+            // arcticjoiner://experiences/start?placeId=... (the same shape as a
+            // roblox:// deep link); older ones were arcticjoiner://placeId=... .
+            // Normalise both to the current scheme so we never emit the legacy form.
             if (text.StartsWith("arcticjoiner://", StringComparison.OrdinalIgnoreCase))
             {
-                return "roblox://" + text.Substring("arcticjoiner://".Length);
+                string rest = text.Substring("arcticjoiner://".Length);
+                if (rest.IndexOf('?') >= 0 || rest.IndexOf('/') >= 0)
+                {
+                    return "roblox://" + rest;
+                }
+                return "roblox://experiences/start?" + rest;
             }
 
             string placeId = null, instanceId = null, launchData = null, privateCode = null;
