@@ -190,6 +190,12 @@ button.button.fav-on {
   cursor: pointer;
 }
 
+/* It is a label, but not a bold field label - keep it on one line. */
+.field label.fav-toggle {
+  font-weight: 500;
+  white-space: nowrap;
+}
+
 .stack {
   display: grid;
   gap: 14px;
@@ -323,7 +329,7 @@ code, .code-block {
 
 .toolbar {
   display: grid;
-  grid-template-columns: 1.6fr 1fr 1fr;
+  grid-template-columns: 1.6fr 1fr 1fr auto;
   gap: 12px;
   margin-top: 24px;
 }
@@ -503,6 +509,12 @@ code, .code-block {
   border-radius: 14px;
   color: var(--subtle);
   text-align: center;
+}
+
+@media (max-width: 1040px) {
+  .toolbar {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 @media (max-width: 760px) {
