@@ -1,6 +1,14 @@
 [
   {
     "date": "2026-10-03",
+    "title": "Servers page: Arctic Joiner button joins the right server",
+    "items": [
+      "The per-server Arctic Joiner button on the Servers page handed the desktop app a legacy arcticjoiner://placeId=... link, which the app rewrote into the old roblox://placeId=... deep link and could drop you into the wrong server. It now sends arcticjoiner://experiences/start?placeId=...&gameInstanceId=..., matching the invite page and the sniper, so the app joins the exact server you clicked."
+    ]
+  },
+
+  {
+    "date": "2026-10-03",
     "title": "Discord verification fixed, favourites tidied, live stats accurate",
     "items": [
       "Discord verification on the private servers page now shows what actually went wrong: Discord returns failures in the URL query string, which the page never read, so a failure looked like nothing happened. It now reports Discord's own error (and the redirect URI it expects), and the saved verification expires with the token instead of lingering.",
