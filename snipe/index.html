@@ -235,7 +235,9 @@
                 return { id: hit.id, name: hit.name };
               });
           }).then(function (data) {
-            var id = data.data ? data.data[0].id : data.id;
+            var hit = data && data.data && data.data[0];
+            var id = hit ? hit.id : (data && data.id);
+            if (!id) throw new Error('No Roblox user with that name was found.');
             return getApi('https://users.roproxy.com/v1/users/' + id);
           });
         })

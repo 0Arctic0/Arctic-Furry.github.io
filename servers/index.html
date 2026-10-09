@@ -291,6 +291,8 @@
         if (b) b.disabled = !canAct;
       });
       if (watchStopBtn) watchStopBtn.disabled = !watching;
+      // A refresh fires while watching; keep Start Watching disabled until it stops.
+      if (watching && watchStartBtn) watchStartBtn.disabled = true;
       if (!servers.length) {
         setStatus('No public servers right now.', true);
         return;

@@ -59,10 +59,15 @@
   function parseInviteLikeInput(value) {
     let text = String(value || '').trim();
     if (!text) return null;
-    // arcticjoiner:// links carry the params after "://" with no "?", so turn
-    // them into a normal query the parser below can read.
+    // Our own app protocol. Modern links look like
+    // arcticjoiner://experiences/start?placeId=... (same shape as a roblox://
+    // deep link); older ones were arcticjoiner://placeId=... (a bare query).
+    // Normalise both into something the URL parser below understands.
     if (/^arcticjoiner:\/\//i.test(text)) {
-      text = 'https://join.invalid/?' + text.replace(/^arcticjoiner:\/\//i, '');
+      const rest = text.replace(/^arcticjoiner:\/\//i, '');
+      text = (rest.indexOf('?') >= 0 || rest.indexOf('/') >= 0)
+        ? 'roblox://' + rest
+        : 'https://join.invalid/?' + rest;
     }
     // Tolerate links pasted without the scheme.
     if (!/^https?:\/\//i.test(text) && /^([a-z0-9-]+\.)*roblox\.com\//i.test(text)) {
@@ -169,8 +174,15 @@
     if (user.avatar) {
       return 'https://cdn.discordapp.com/avatars/' + user.id + '/' + user.avatar + '.png?size=128';
     }
+    // New Discord usernames have discriminator "0" and pick their default
+    // avatar from (id >> 22) % 6; older accounts use discriminator % 5.
     const discriminator = Number(user.discriminator || '0');
-    const fallback = Number.isFinite(discriminator) ? discriminator % 5 : 0;
+    let fallback = 0;
+    if (!discriminator && /^\d+$/.test(String(user.id || ''))) {
+      try { fallback = Number(BigInt(user.id) >> 22n) % 6; } catch (_) { fallback = 0; }
+    } else if (Number.isFinite(discriminator)) {
+      fallback = discriminator % 5;
+    }
     return 'https://cdn.discordapp.com/embed/avatars/' + fallback + '.png';
   }
 
