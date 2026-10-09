@@ -1,6 +1,14 @@
 [
   {
     "date": "2026-10-03",
+    "title": "Private Servers: the Favorites checkbox fits the toolbar",
+    "items": [
+      "The Show only favorites checkbox in the /ps toolbar was being styled as a text field - stretched to full width with text-box padding - so it looked like a stray grey box and pushed its label across the row. It is a normal 18px checkbox now, aligned with the Search and Sort fields."
+    ]
+  },
+
+  {
+    "date": "2026-10-03",
     "title": "Windows app: arcticjoiner:// links always use the current join scheme",
     "items": [
       "The app's own arcticjoiner:// protocol handler used to turn every incoming link into the legacy roblox://placeId=... form. It now sends place-id links through roblox://experiences/start?placeId=... and passes anything with a path (experiences/start or navigation/share_links) straight through, so even an old bookmarked arcticjoiner:// link joins the right server."
